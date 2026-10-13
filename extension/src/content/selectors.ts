@@ -5,7 +5,6 @@
  *
  * Exposto em self.RankedSelectors para o content.js (mesmo mundo isolado).
  */
-(() => {
   const norm = (s) => (s || "").replace(/\s+/g, " ").trim().toLowerCase();
 
   /** Dispara um set de valor que o React reconhece (input controlado). */
@@ -32,7 +31,7 @@
     return true;
   }
 
-  const S = {
+  const S: any = {
     norm,
     setReactInput,
     isVisible,
@@ -122,5 +121,5 @@
     },
   };
 
-  self.RankedSelectors = S;
-})();
+export { S };
+

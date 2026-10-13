@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import D from "../src/detect.js"; // detect.js é CJS (module.exports) → import default traz a api
+import * as D from "../src/content/detect.ts"; // módulo ES com exports nomeados
 
 describe("detect — jogo único (Md1)", () => {
   it("conta vitória ao chegar a 8 depois de ver o jogo em andamento", () => {

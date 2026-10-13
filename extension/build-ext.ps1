@@ -1,9 +1,14 @@
-# Gera extension/dist/riftatlas-ranked.zip a partir de manifest.json + src/.
-# Usa ZipArchive.CreateEntry com nomes de entrada em "/" (compatível com Chrome/Firefox).
+# Gera extension/dist/riftatlas-ranked.zip: bundla os TS com esbuild e empacota
+# manifest.json + os bundles (dist/inpage.js, dist/content.js).
 $ErrorActionPreference = 'Stop'
 $ext = Split-Path -Parent $PSCommandPath
+
+# 1) bundle TS -> dist/*.js (esbuild)
+Push-Location $ext
+try { & npm run build; if ($LASTEXITCODE -ne 0) { throw "esbuild falhou" } } finally { Pop-Location }
+
+# 2) empacota o zip
 $out = Join-Path $ext 'dist'
-New-Item -ItemType Directory -Force $out | Out-Null
 $zip = Join-Path $out 'riftatlas-ranked.zip'
 if (Test-Path $zip) { Remove-Item $zip -Force }
 Add-Type -AssemblyName System.IO.Compression
@@ -15,9 +20,8 @@ function Add-Entry($archive, $src, $name) {
   $s = $e.Open(); $b = [System.IO.File]::ReadAllBytes($src); $s.Write($b, 0, $b.Length); $s.Close()
 }
 Add-Entry $za (Join-Path $ext 'manifest.json') 'manifest.json'
-Add-Entry $za (Join-Path $ext 'src/inpage.js') 'src/inpage.js'
-Add-Entry $za (Join-Path $ext 'src/content.js') 'src/content.js'
-Add-Entry $za (Join-Path $ext 'src/selectors.js') 'src/selectors.js'
+Add-Entry $za (Join-Path $out 'inpage.js') 'dist/inpage.js'
+Add-Entry $za (Join-Path $out 'content.js') 'dist/content.js'
 $za.Dispose(); $fs.Close()
 $v = (Get-Content (Join-Path $ext 'manifest.json') -Raw | ConvertFrom-Json).version
 Write-Host "gerado $zip  (v$v, $((Get-Item $zip).Length) bytes)"

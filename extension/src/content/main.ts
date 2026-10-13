@@ -1,3 +1,5 @@
+import { S } from "./selectors";
+import * as D from "./detect";
 /**
  * Content script (mundo ISOLADO). O "piloto":
  *  - recebe identidade/estado do inpage (ponte postMessage);
@@ -8,10 +10,7 @@
  *
  * Depende de self.RankedSelectors (selectors.js, mesmo mundo isolado).
  */
-(() => {
-  "use strict";
-  const S = self.RankedSelectors;
-  const D = self.RankedDetect; // detecção de vencedor/série (lógica pura — detect.js)
+"use strict";
   const TAG = "__ranked";
   const LADDER_URL = "https://app.megacards.com.br/ranked";
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -48,7 +47,7 @@
   function soundOn(k) { return soundPrefs[k] !== false; }
   function setSound(k, v) { soundPrefs[k] = v; try { localStorage.setItem("ranked_sounds", JSON.stringify(soundPrefs)); } catch {} }
 
-  function playTones(notes, opts = {}) {
+  function playTones(notes, opts: any = {}) {
     try {
       ensureAudio();
       if (!audioCtx) return;
@@ -193,7 +192,7 @@
   function reasonText(r) { return T().reasons[r] || r; }
 
   // ----------------------------- tiers -----------------------------
-  const RK_TIERS = [
+  const RK_TIERS: [number, string][] = [
     [1000, "#9d6b3f"], [1200, "#9aa7b4"], [1400, "#d2a43c"], [1600, "#3f9d9f"],
     [1800, "#3f9d63"], [2000, "#5a88c4"], [2200, "#8e63c0"], [2350, "#c25049"], [2500, "#caa94f"],
   ];
@@ -947,4 +946,4 @@
     setInterval(checkUpdate, 15 * 60 * 1000); // reconfere atualização a cada 15 min
   }
   boot();
-})();
+

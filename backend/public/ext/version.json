@@ -1,5 +1,5 @@
 {
-  "version": "0.3.18",
-  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.18",
-  "notes": "Qualidade: detecção de vencedor extraída para módulo testável (detect.js) + testes; reputação (likes) visível no perfil; verificação de atualização periódica."
+  "version": "0.3.19",
+  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.19",
+  "notes": "Arquitetura: extensão migrada para TypeScript + bundler (esbuild); módulos separados e sem variáveis globais. Sem mudança de comportamento."
 }

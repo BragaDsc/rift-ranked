@@ -45,7 +45,7 @@
   }
   PatchedWS.prototype = OrigWS.prototype;
   for (const k of ["CONNECTING", "OPEN", "CLOSING", "CLOSED"]) PatchedWS[k] = OrigWS[k];
-  window.WebSocket = PatchedWS;
+  window.WebSocket = PatchedWS as any;
 
   // Tipos de frame do RiftAtlas que carregam estado (mapeado na captura real).
   const RELEVANT_TYPES = new Set([
