@@ -1,5 +1,5 @@
 {
-  "version": "0.3.19",
-  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.19",
-  "notes": "Arquitetura: extensão migrada para TypeScript + bundler (esbuild); módulos separados e sem variáveis globais. Sem mudança de comportamento."
+  "version": "0.3.21",
+  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.21",
+  "notes": "Remove o diagnóstico visível (overlay limpo); log de depuração opcional atrás de localStorage ranked_debug=1."
 }

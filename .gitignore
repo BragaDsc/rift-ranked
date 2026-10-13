@@ -6,6 +6,8 @@ backend/dist/
 backend/dist-verify/
 # zip da extensão (artefato de build)
 extension/dist/
+# pasta extraída pra instalar (artefato)
+extension/unpacked/
 # segredos / ambiente
 *.env
 .env

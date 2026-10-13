@@ -14,6 +14,7 @@ import * as D from "./detect";
   const TAG = "__ranked";
   const LADDER_URL = "https://app.megacards.com.br/ranked";
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const DEBUG = (() => { try { return localStorage.getItem("ranked_debug") === "1"; } catch { return false; } })();
 
   // ----------------------------- config -----------------------------
   const PROD_WS = "wss://app.megacards.com.br/ranked/ws";
@@ -532,6 +533,10 @@ import * as D from "./detect";
         openConfirm(winner === me ? "me" : "opp");
       }
     }
+
+    // log opcional p/ depuração (silencioso por padrão; ligue com
+    // localStorage.setItem("ranked_debug","1") no console da aba do RiftAtlas).
+    if (DEBUG) { try { console.debug("[ranked] frame", { phase: gs.phase, me, scores: gs.scores, det: m.det, match: m.matchId }); } catch {} }
   }
 
   // -------------------- janela de confirmação do vencedor --------------------
