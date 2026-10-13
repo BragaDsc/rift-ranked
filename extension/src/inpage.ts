@@ -68,7 +68,7 @@
     "authoritative_patch_commit",
   ]);
   // Estado acumulado da partida (o protocolo manda deltas, não o estado inteiro).
-  const acc: any = { phase: null, scores: {}, winnerPlayerId: null, viewerPlayerId: null, disconnected: [] };
+  const acc: any = { phase: null, scores: {}, winnerPlayerId: null, viewerPlayerId: null, disconnected: [], outcome: null };
   let lastSig = "";
   // Cada partida é uma sala nova = uma WS nova. Zera o estado herdado do jogo
   // anterior (placar/fase/vencedor) — senão um "8" obsoleto que sobrou em memória
@@ -81,6 +81,7 @@
     acc.winnerPlayerId = null;
     acc.viewerPlayerId = null;
     acc.disconnected = [];
+    acc.outcome = null;
     lastSig = "";
     decksSent = false;
   }
@@ -124,7 +125,7 @@
     if (!RELEVANT_TYPES.has(obj.type)) return;
     applyToAcc(obj);
     // só encaminha quando algo relevante mudou
-    const sig = acc.phase + "|" + JSON.stringify(acc.scores) + "|" + (acc.winnerPlayerId || "") + "|" + acc.disconnected.join(",");
+    const sig = acc.phase + "|" + JSON.stringify(acc.scores) + "|" + (acc.winnerPlayerId || "") + "|" + acc.disconnected.join(",") + "|" + (acc.outcome ? acc.outcome.winnerId + ":" + acc.outcome.reason : "");
     if (sig === lastSig) return;
     lastSig = sig;
     post({
@@ -135,6 +136,7 @@
         winnerPlayerId: acc.winnerPlayerId,
         viewerPlayerId: acc.viewerPlayerId,
         disconnected: [...acc.disconnected],
+        outcome: acc.outcome,
       },
     });
   }
@@ -169,6 +171,11 @@
       setPhase(d.phase);
       if (d.viewer && d.viewer.playerId) acc.viewerPlayerId = d.viewer.playerId;
       if (d.disconnectedAtByPlayerId) acc.disconnected = Object.keys(d.disconnectedAtByPlayerId);
+      // alguém saiu da partida (leftAt) → vencedor é quem ficou (selfPlayer)
+      if (!acc.outcome && Array.isArray(d.publicPlayers) && d.selfPlayer) {
+        const left = d.publicPlayers.find((p) => p && p.leftAt);
+        if (left && !(d.selfPlayer.leftAt)) acc.outcome = { winnerId: d.selfPlayer.id, reason: "abandon" };
+      }
       scanWinner(d);
     } else if (obj.type === "authoritative_snapshot" && obj.snapshot) {
       const s = obj.snapshot;
@@ -180,6 +187,14 @@
           if (p && p.id && sc !== null) acc.scores[p.id] = sc;
         }
       if (s.disconnectedAtByPlayerId) acc.disconnected = Object.keys(s.disconnectedAtByPlayerId);
+      // resultado autoritativo do RiftAtlas: gameOutcome (vitória/concessão) OU alguém saiu
+      if (s.gameOutcome && Array.isArray(s.gameOutcome.winnerPlayerIds) && s.gameOutcome.winnerPlayerIds.length) {
+        acc.outcome = { winnerId: s.gameOutcome.winnerPlayerIds[0], reason: s.gameOutcome.reason || "unknown" };
+      } else if (!acc.outcome && Array.isArray(s.players)) {
+        const left = s.players.find((p) => p && p.leftAt);
+        const other = left && s.players.find((p) => p && p.id && p.id !== left.id);
+        if (left && other) acc.outcome = { winnerId: other.id, reason: "abandon" };
+      }
       maybeSendDecks(s); // captura Legend/champion/deck (1x por partida)
       scanWinner(s);
     } else if (obj.type === "authoritative_patch_commit" && obj.patch) {

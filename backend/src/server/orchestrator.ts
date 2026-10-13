@@ -218,6 +218,15 @@ export class Orchestrator {
             this.confirmDeadlines.set(matchId, this.now() + this.cfg.confirmTimeoutMs);
         // ainda falta o outro lado
         if (c.host == null || c.joiner == null) {
+            // se o oponente não está conectado (desistiu/saiu/caiu), não há quem confirmar:
+            // resolve já com o placar corroborado, senão com o que este jogador confirmou.
+            if (!this.isConnected(oppId)) {
+                this.confirmDeadlines.delete(matchId);
+                this.confirmations.delete(matchId);
+                const authId = this.authSeriesWinnerId(matchId, m);
+                await this.finalizeConfirmed(m, authId ?? claimedId, "concession");
+                return;
+            }
             this.send(playerId, { type: "confirm_waiting", matchId });
             // garante que o oponente veja a janela de confirmação (mesmo que tenha
             // recarregado a página ou que o cliente dele não tenha detectado o fim).

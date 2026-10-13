@@ -563,6 +563,13 @@ import * as D from "./detect";
       }
     }
 
+    // fim autoritativo do RiftAtlas: desistência / saída / abandono (gameOutcome ou leftAt).
+    // Encerra a partida com esse vencedor. (reason "score" já é tratado pelo placar acima.)
+    if (gs.outcome && gs.outcome.winnerId && gs.outcome.reason !== "score" && !m.confirmShown && me) {
+      m.confirmShown = true;
+      openConfirm(gs.outcome.winnerId === me ? "me" : "opp");
+    }
+
     // log opcional p/ depuração (silencioso por padrão; ligue com
     // localStorage.setItem("ranked_debug","1") no console da aba do RiftAtlas).
     if (DEBUG) { try { console.debug("[ranked] frame", { phase: gs.phase, me, scores: gs.scores, det: m.det, match: m.matchId }); } catch {} }

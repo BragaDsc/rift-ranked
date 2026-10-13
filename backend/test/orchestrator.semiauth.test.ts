@@ -10,6 +10,9 @@ async function setup(format: "bo1" | "bo3" = "bo1") {
   const orch = new Orchestrator(repo as any, (pid: string, msg: any) => sent.push({ pid, msg }), DEFAULT_CONFIG);
   const h = await repo.getOrCreatePlayer({ clerkUserId: "H", displayName: "Host" });
   const j = await repo.getOrCreatePlayer({ clerkUserId: "J", displayName: "Joiner" });
+  // ambos conectados (presença), como numa partida real
+  orch.onConnected(h.id, "Host");
+  orch.onConnected(j.id, "Joiner");
   const m = createMatch({ id: "M", format, hostId: h.id, joinerId: j.id, now: 0 });
   (orch as any).matches.set("M", m);
   (orch as any).playerMatch.set(h.id, "M");
@@ -59,5 +62,15 @@ describe("orchestrator — placar semi-autoritativo (#7)", () => {
     await orch.onConfirmResult(j, "M", "me", null);  // joiner diz: joiner venceu → acordo
     expect(resolvedFor(sent, j).youWon).toBe(true);
     expect(resolvedFor(sent, h).youWon).toBe(false);
+  });
+
+  it("oponente desconectou (desistiu/saiu): a confirmação de quem ficou resolve na hora", async () => {
+    const { orch, sent, h, j } = await setup("bo1");
+    orch.onGameScore(h, "M", 8, 2);
+    orch.onGameScore(j, "M", 8, 2); // host venceu (corroborado)
+    orch.onDisconnected(j);          // oponente saiu da partida
+    await orch.onConfirmResult(h, "M", "me", null); // host confirma; não há quem confirmar do outro lado
+    expect(resolvedFor(sent, h).youWon).toBe(true);
+    expect((orch as any).matches.get("M").state).toBe("RATED");
   });
 });

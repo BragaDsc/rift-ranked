@@ -1,5 +1,5 @@
 {
-  "version": "0.3.25",
-  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.25",
-  "notes": "Marca renomeada para Rift Ranked. Legend vs Legend global (confrontos ao clicar num Legend), confrontos no perfil (vs jogadores, Legend vs Legend)."
+  "version": "0.3.26",
+  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.26",
+  "notes": "Corrige desistência/saída: lê o resultado autoritativo do RiftAtlas (gameOutcome/leftAt) para encerrar a partida e definir vitória/derrota; backend resolve na hora se o oponente já saiu."
 }
