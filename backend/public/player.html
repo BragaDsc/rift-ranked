@@ -267,7 +267,7 @@
         ? `<div class="prep"><span class="up">👍 ${rep.likes}</span> · <span class="dn">👎 ${rep.dislikes}</span></div>`
         : "";
       const cardImg = (code) => code ? `https://assets.riftatlas-workers.com/cdn-cgi/image/width=320,quality=75,format=auto,fit=scale-down/riftbound/cards/small-v2/${encodeURIComponent(code)}.webp` : "";
-      const legIcon = (code) => code ? `https://assets.riftatlas-workers.com/cdn-cgi/image/width=140,quality=75,format=auto,fit=scale-down/riftbound/cards/small-v2/${encodeURIComponent(code)}.webp` : "";
+      const legIcon = (code) => code ? `https://assets.riftatlas-workers.com/cdn-cgi/image/width=320,quality=75,format=auto,fit=scale-down/riftbound/cards/small-v2/${encodeURIComponent(code)}.webp` : "";
       const champName = (ln) => (ln || "").split(",")[0].trim() || "?";
       const fmtL = (fmt === "bo3" ? t().fmt3 : t().fmt1);
       const champs = data.champions || [];
