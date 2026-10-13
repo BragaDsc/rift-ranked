@@ -342,6 +342,63 @@ export class PgRepository {
             winrate: r.games ? Math.round((r.wins / r.games) * 100) : 0,
         }));
     }
+    /** Confrontos do jogador contra cada oponente, com o detalhe Legend vs Legend. */
+    async playerHeadToHead(playerId, format) {
+        const opps = await this.pool.query(`SELECT o.id AS opp_id, o.display_name AS opp_name,
+              count(*)::int AS games,
+              count(*) FILTER (WHERE m.winner_id = $1)::int AS wins
+         FROM matches m
+         JOIN players o ON o.id = (CASE WHEN m.player_a = $1 THEN m.player_b ELSE m.player_a END)
+        WHERE (m.player_a = $1 OR m.player_b = $1)
+          AND m.format = $2 AND m.state = 'RATED' AND m.winner_id IS NOT NULL
+          AND m.result_reason <> 'double_no_show'
+        GROUP BY o.id, o.display_name
+        ORDER BY games DESC`, [playerId, format]);
+        const lvl = await this.pool.query(`SELECT
+             (CASE WHEN m.player_a = $1 THEN m.player_b ELSE m.player_a END) AS opp_id,
+             mine.legend_code AS my_code, mine.legend_name AS my_name,
+             theirs.legend_code AS opp_code, theirs.legend_name AS opp_legend_name,
+             count(*)::int AS games,
+             count(*) FILTER (WHERE m.winner_id = $1)::int AS wins
+         FROM matches m
+         JOIN match_decks mine ON mine.match_id = m.id AND mine.player_id = $1
+         JOIN match_decks theirs ON theirs.match_id = m.id AND theirs.player_id <> $1
+        WHERE (m.player_a = $1 OR m.player_b = $1)
+          AND m.format = $2 AND m.state = 'RATED' AND m.winner_id IS NOT NULL
+          AND m.result_reason <> 'double_no_show'
+        GROUP BY opp_id, mine.legend_code, mine.legend_name, theirs.legend_code, theirs.legend_name
+        ORDER BY games DESC`, [playerId, format]);
+        const byOpp = new Map();
+        for (const r of opps.rows)
+            byOpp.set(r.opp_id, { oppId: r.opp_id, oppName: r.opp_name, games: r.games, wins: r.wins, losses: r.games - r.wins, matchups: [] });
+        for (const r of lvl.rows) {
+            const o = byOpp.get(r.opp_id);
+            if (!o)
+                continue;
+            o.matchups.push({ myCode: r.my_code, myName: r.my_name, oppCode: r.opp_code, oppName: r.opp_legend_name, games: r.games, wins: r.wins, losses: r.games - r.wins });
+        }
+        return [...byOpp.values()];
+    }
+    /** Matchup GLOBAL Legend vs Legend (direcionado): A enfrentou B, quantos A venceu. */
+    async legendMatchups(format) {
+        const { rows } = await this.pool.query(`SELECT a.legend_code AS a_code, max(a.legend_name) AS a_name,
+              b.legend_code AS b_code, max(b.legend_name) AS b_name,
+              count(*)::int AS games,
+              count(*) FILTER (WHERE m.winner_id = a.player_id)::int AS a_wins
+         FROM matches m
+         JOIN match_decks a ON a.match_id = m.id
+         JOIN match_decks b ON b.match_id = m.id AND b.player_id <> a.player_id
+        WHERE m.format = $1 AND m.state = 'RATED' AND m.winner_id IS NOT NULL
+          AND m.result_reason <> 'double_no_show'
+          AND a.legend_code IS NOT NULL AND b.legend_code IS NOT NULL
+        GROUP BY a.legend_code, b.legend_code
+        ORDER BY games DESC`, [format]);
+        return rows.map((r) => ({
+            aCode: r.a_code, aName: r.a_name, bCode: r.b_code, bName: r.b_name,
+            games: r.games, aWins: r.a_wins, aLosses: r.games - r.a_wins,
+            winrate: r.games ? Math.round((r.a_wins / r.games) * 100) : 0,
+        }));
+    }
     rowToMatch(r) {
         return {
             id: r.id,

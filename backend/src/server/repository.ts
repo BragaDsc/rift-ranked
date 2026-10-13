@@ -37,6 +37,10 @@ export interface Repository {
   championStats?(format: Format, limit: number): Promise<ChampionStat[]>;
   /** Campeões usados por um jogador num formato. */
   playerChampions?(playerId: PlayerId, format: Format): Promise<ChampionStat[]>;
+  /** Confrontos do jogador contra cada oponente (com Legend vs Legend). */
+  playerHeadToHead?(playerId: PlayerId, format: Format): Promise<any[]>;
+  /** Matchup global Legend vs Legend (direcionado). */
+  legendMatchups?(format: Format): Promise<any[]>;
 }
 
 export interface ChampionStat {

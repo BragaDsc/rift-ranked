@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Rift Atlas — Perfil</title>
+  <title>Rift Ranked — Perfil</title>
   <style>
     :root {
       --bg: #0a0e16; --bg2: #0c1220; --line: rgba(197,170,110,.16); --line2: rgba(255,255,255,.055);
@@ -37,6 +37,20 @@
     .ch-n { font-size: 12.5px; font-weight: 700; margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .ch-s { font-size: 11px; color: #8b94a3; font-variant-numeric: tabular-nums; }
     .ch-s .good { color: #7fc47a; } .ch-s .bad { color: #d1706c; }
+    .h2h { display: flex; flex-direction: column; gap: 12px; }
+    .opp { border: 1px solid rgba(255,255,255,.06); border-radius: 10px; padding: 10px 12px; background: rgba(0,0,0,.18); }
+    .opp-h { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .opp-h a { color: #eef1f6; font-weight: 700; text-decoration: none; }
+    .opp-h a:hover { color: #c8aa6e; }
+    .opp-rec { margin-left: auto; font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .mu-list { display: flex; flex-direction: column; gap: 6px; }
+    .mu { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #b4bdca; }
+    .mu .lg { width: 26px; height: 35px; object-fit: cover; border-radius: 5px; border: 1px solid rgba(200,170,110,.2); background: #0b1220; flex: none; }
+    .mu .vs { color: #5a6676; font-size: 10px; }
+    .mu .mu-nm { font-weight: 600; color: #cdd6e4; }
+    .mu .mu-nm i { color: #5a6676; font-style: normal; }
+    .mu .mu-rec { margin-left: auto; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .good { color: #7fc47a; } .bad { color: #d1706c; }
     .psub { color: var(--muted); font-size: 12.5px; margin-top: 3px; letter-spacing: .3px; }
     .fmts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
     .fcard { background: var(--bg2); border: 1px solid var(--line2); border-radius: 8px; padding: 14px 16px; cursor: pointer; transition: .12s; }
@@ -72,7 +86,7 @@
 <body>
   <div class="topbar">
     <div class="inner">
-      <a class="brand" href="/ranked"><span class="a">RIFT ATLAS</span><span class="b" id="brandB">Perfil</span></a>
+      <a class="brand" href="/ranked"><span class="a">RIFT RANKED</span><span class="b" id="brandB">Perfil</span></a>
       <div class="sp"></div>
       <a class="back" id="back" href="/ranked">← Voltar ao ladder</a>
       <div class="lang" id="lang"></div>
@@ -83,21 +97,21 @@
 
   <script>
     const L = {
-      pt: { docTitle: "Rift Atlas — Perfil", brandB: "Perfil", back: "← Voltar ao ladder", sub: "Constructed · Temporada 1",
+      pt: { docTitle: "Rift Ranked — Perfil", brandB: "Perfil", back: "← Voltar ao ladder", sub: "Constructed · Temporada 1",
         fmt1: "Melhor de 1", fmt3: "Melhor de 3", games: (n) => `${n} jogos`, w: "V", l: "D",
         notRanked: "Não classificado", lp: (n) => `${n} LP`, placeLeft: (n) => `faltam ${n} colocação(ões)`,
         chartTitle: (f) => `Evolução de MMR — ${f}`, matches: (n) => `${n} partida(s) registrada(s)`,
         noMatches: "Sem partidas ranqueadas neste formato ainda.", notFound: "Perfil não encontrado.",
         noPlayer: "Jogador não informado.", loading: "Carregando…", start: "início",
         tiers: ["Bronze", "Prata", "Ouro", "Platina", "Esmeralda", "Diamante", "Mestre", "Grão-Mestre", "Desafiante"], loc: "pt-BR" },
-      en: { docTitle: "Rift Atlas — Profile", brandB: "Profile", back: "← Back to ladder", sub: "Constructed · Season 1",
+      en: { docTitle: "Rift Ranked — Profile", brandB: "Profile", back: "← Back to ladder", sub: "Constructed · Season 1",
         fmt1: "Best of 1", fmt3: "Best of 3", games: (n) => `${n} games`, w: "W", l: "L",
         notRanked: "Unranked", lp: (n) => `${n} LP`, placeLeft: (n) => `${n} placement(s) left`,
         chartTitle: (f) => `MMR progression — ${f}`, matches: (n) => `${n} match(es) recorded`,
         noMatches: "No ranked games in this format yet.", notFound: "Profile not found.",
         noPlayer: "No player specified.", loading: "Loading…", start: "start",
         tiers: ["Bronze", "Silver", "Gold", "Platinum", "Emerald", "Diamond", "Master", "Grandmaster", "Challenger"], loc: "en-US" },
-      zh: { docTitle: "Rift Atlas — 个人资料", brandB: "个人资料", back: "← 返回天梯", sub: "Constructed · 第 1 赛季",
+      zh: { docTitle: "Rift Ranked — 个人资料", brandB: "个人资料", back: "← 返回天梯", sub: "Constructed · 第 1 赛季",
         fmt1: "单局 BO1", fmt3: "三局 BO3", games: (n) => `${n} 场`, w: "胜", l: "负",
         notRanked: "未定级", lp: (n) => `${n} LP`, placeLeft: (n) => `还需 ${n} 场定级`,
         chartTitle: (f) => `MMR 走势 — ${f}`, matches: (n) => `${n} 场记录`,
@@ -253,15 +267,37 @@
         ? `<div class="prep"><span class="up">👍 ${rep.likes}</span> · <span class="dn">👎 ${rep.dislikes}</span></div>`
         : "";
       const cardImg = (code) => code ? `https://assets.riftatlas-workers.com/cdn-cgi/image/width=320,quality=75,format=auto,fit=scale-down/riftbound/cards/small-v2/${encodeURIComponent(code)}.webp` : "";
+      const legIcon = (code) => code ? `https://assets.riftatlas-workers.com/cdn-cgi/image/width=140,quality=75,format=auto,fit=scale-down/riftbound/cards/small-v2/${encodeURIComponent(code)}.webp` : "";
       const champName = (ln) => (ln || "").split(",")[0].trim() || "?";
+      const fmtL = (fmt === "bo3" ? t().fmt3 : t().fmt1);
       const champs = data.champions || [];
       const champHtml = champs.length ? `
-        <div class="panel"><h2>Campeões (${(fmt === "bo3" ? t().fmt3 : t().fmt1)})</h2>
+        <div class="panel"><h2>Legends de ${esc(name)} (${fmtL})</h2>
           <div class="champs">${champs.map((c) => {
             const wr = c.winrate >= 50 ? "good" : "bad";
             return `<div class="ch"><div class="ch-art" style="background-image:url('${cardImg(c.legendCode || c.championCode)}')"></div>
               <div class="ch-n">${esc(champName(c.legendName))}</div>
               <div class="ch-s"><b class="${wr}">${c.winrate}%</b> · ${c.wins}V ${c.losses}D</div></div>`;
+          }).join("")}</div>
+        </div>` : "";
+      const h2h = data.headToHead || [];
+      const h2hHtml = h2h.length ? `
+        <div class="panel"><h2>Confrontos (${fmtL})</h2>
+          <div class="h2h">${h2h.map((o) => {
+            const wr = o.games ? Math.round(o.wins / o.games * 100) : 0;
+            const mus = (o.matchups || []).map((mu) => `
+              <div class="mu">
+                <img class="lg" src="${legIcon(mu.myCode)}" alt="" title="${esc(mu.myName || "")}">
+                <span class="vs">vs</span>
+                <img class="lg" src="${legIcon(mu.oppCode)}" alt="" title="${esc(mu.oppName || "")}">
+                <span class="mu-nm">${esc(champName(mu.myName))} <i>vs</i> ${esc(champName(mu.oppName))}</span>
+                <span class="mu-rec ${mu.wins >= mu.losses ? "good" : "bad"}">${mu.wins}V ${mu.losses}D</span>
+              </div>`).join("");
+            return `<div class="opp">
+              <div class="opp-h"><a href="/ranked/jogador?id=${encodeURIComponent(o.oppId)}&format=${fmt}">${esc(o.oppName || "Jogador")}</a>
+                <span class="opp-rec ${o.wins >= o.losses ? "good" : "bad"}">${o.wins}V ${o.losses}D · ${wr}%</span></div>
+              <div class="mu-list">${mus}</div>
+            </div>`;
           }).join("")}</div>
         </div>` : "";
       app.innerHTML = `
@@ -271,6 +307,7 @@
         </div>
         <div class="fmts">${fmtCard(t().fmt1, data.bo1, "bo1")}${fmtCard(t().fmt3, data.bo3, "bo3")}</div>
         ${champHtml}
+        ${h2hHtml}
         <div class="panel">
           <h2>${t().chartTitle(fmt === "bo3" ? t().fmt3 : t().fmt1)}</h2>
           <div class="cap">${t().matches(data.history.length)}</div>

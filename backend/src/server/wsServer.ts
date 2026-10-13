@@ -84,7 +84,7 @@ export function startServer(opts) {
             }
             // página de campeões (estatísticas por Legend)
             if (req.method === "GET" &&
-                (url.pathname === "/ranked/campeoes" || url.pathname === "/ranked/champions")) {
+                (url.pathname === "/ranked/campeoes" || url.pathname === "/ranked/champions" || url.pathname === "/ranked/legends")) {
                 res.setHeader("Content-Type", "text/html; charset=utf-8");
                 res.end(CHAMPIONS_HTML);
                 return;
@@ -95,6 +95,12 @@ export function startServer(opts) {
                 const champions = (await repo.championStats?.(format, limit)) ?? [];
                 const totalGames = champions.reduce((n, c) => n + c.games, 0);
                 res.end(JSON.stringify({ format, totalGames, champions }));
+                return;
+            }
+            if (req.method === "GET" && url.pathname === "/ranked/api/matchups") {
+                const format = (url.searchParams.get("format") ?? "bo1");
+                const matchups = (await repo.legendMatchups?.(format)) ?? [];
+                res.end(JSON.stringify({ format, matchups }));
                 return;
             }
             if (req.method === "GET" && url.pathname === "/ranked/api/player") {
@@ -128,6 +134,7 @@ export function startServer(opts) {
                 };
                 const reputation = (await repo.getLikeStats?.(id)) ?? { likes: 0, dislikes: 0, net: 0 };
                 const champions = (await repo.playerChampions?.(id, format)) ?? [];
+                const headToHead = (await repo.playerHeadToHead?.(id, format)) ?? [];
                 res.end(JSON.stringify({
                     player: { id: player.id, displayName: player.displayName },
                     format,
@@ -135,6 +142,7 @@ export function startServer(opts) {
                     bo3: await summary("bo3"),
                     reputation,
                     champions,
+                    headToHead,
                     history: await repo.ratingHistory(id, format, 200),
                 }));
                 return;

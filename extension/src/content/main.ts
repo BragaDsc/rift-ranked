@@ -75,7 +75,7 @@ import * as D from "./detect";
   // ----------------------------- i18n -----------------------------
   const STRINGS = {
     pt: {
-      brandTop: "RIFT ATLAS", brandBottom: "Ranked",
+      brandTop: "RIFT", brandBottom: "Ranked",
       md1: "Md1", md3: "Md3", playMd1: "Jogar Md1", playMd3: "Jogar Md3",
       leave: "Sair da fila", ladder: "Ver ladder completo →", minimize: "Minimizar",
       placement: "Colocação", tierDash: "—", w: "V", l: "D", noMatches: "sem partidas",
@@ -112,7 +112,7 @@ import * as D from "./detect";
       reasons: { score: "pontuação", concession: "desistência", walkover: "W.O.", double_no_show: "anulada", disputed: "disputa" },
     },
     en: {
-      brandTop: "RIFT ATLAS", brandBottom: "Ranked",
+      brandTop: "RIFT", brandBottom: "Ranked",
       md1: "Bo1", md3: "Bo3", playMd1: "Play Bo1", playMd3: "Play Bo3",
       leave: "Leave queue", ladder: "View full ladder →", minimize: "Minimize",
       placement: "Placement", tierDash: "—", w: "W", l: "L", noMatches: "no games",
@@ -149,7 +149,7 @@ import * as D from "./detect";
       reasons: { score: "score", concession: "concession", walkover: "walkover", double_no_show: "void", disputed: "dispute" },
     },
     zh: {
-      brandTop: "RIFT ATLAS", brandBottom: "排位",
+      brandTop: "RIFT", brandBottom: "排位",
       md1: "单局", md3: "三局", playMd1: "单局 BO1", playMd3: "三局 BO3",
       leave: "退出队列", ladder: "查看完整天梯 →", minimize: "最小化",
       placement: "定级赛", tierDash: "—", w: "胜", l: "负", noMatches: "暂无对局",

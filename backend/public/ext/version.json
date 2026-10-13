@@ -1,5 +1,5 @@
 {
-  "version": "0.3.24",
-  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.24",
-  "notes": "Captura de deck/Legend (estatísticas por campeão), botão Desistir com confirmação, e aviso quando o oponente cai/sai da partida (com Reivindicar vitória)."
+  "version": "0.3.25",
+  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.25",
+  "notes": "Marca renomeada para Rift Ranked. Legend vs Legend global (confrontos ao clicar num Legend), confrontos no perfil (vs jogadores, Legend vs Legend)."
 }
