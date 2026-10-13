@@ -1,5 +1,8 @@
 # Rift Ranked
 
+[![CI](https://github.com/BragaDsc/rift-ranked/actions/workflows/ci.yml/badge.svg)](https://github.com/BragaDsc/rift-ranked/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-c8aa6e.svg)](LICENSE)
+
 Sistema de **ranqueado competitivo** (ladder por MMR Glicko-2) para o simulador de cartas
 não-oficial **RiftAtlas** (`play.riftatlas.com`). É uma **extensão de navegador** (MV3,
 Chrome/Firefox) que lê o estado da partida e dirige a fila, mais um **backend Node/TypeScript**
