@@ -4,14 +4,14 @@
 #
 # Requer:
 #   RANKED_SSH_KEY  caminho da chave SSH de deploy (obrigatório)
-#   RANKED_HOST     destino ssh (default: root@161.97.154.186)
+#   RANKED_HOST     destino ssh (obrigatório, ex.: root@seu-servidor)
 #
 # Antes de rodar: gere o zip e bata a versão em backend/public/ext/version.json.
 #   pwsh extension/build-ext.ps1   (ou PowerShell no Windows)
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 KEY="${RANKED_SSH_KEY:?defina RANKED_SSH_KEY com o caminho da chave de deploy}"
-HOST="${RANKED_HOST:-root@161.97.154.186}"
+HOST="${RANKED_HOST:?defina RANKED_HOST com o destino ssh, ex.: root@seu-servidor}"
 APP="/opt/riftatlas-ranked"
 ZIP="$HERE/extension/dist/riftatlas-ranked.zip"
 VER="$HERE/backend/public/ext/version.json"
