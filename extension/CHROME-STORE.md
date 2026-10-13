@@ -21,9 +21,18 @@ Conteúdo do zip: `manifest.json` (versão Chrome, sem o bloco `gecko` do Firefo
 Já incluído no pacote (`icons/icon16/48/128.png` — "R" dourado sobre fundo navy).
 No painel da loja, use o **`icons/icon128.png`** como ícone 128×128 da listagem.
 
-## Imagens exigidas
-- 1 ícone 128×128.
-- Pelo menos **1 screenshot 1280×800** (ou 640×400). Pode ser um print do overlay do ranqueado em cima do RiftAtlas.
+## Imagens (já prontas em `extension/store-assets/`)
+Sobe no painel conforme o campo:
+- **Ícone da loja (128×128):** `icons/icon128.png`
+- **Screenshots (1280×800)** — sobe os 4:
+  - `store-assets/screenshot-1-overview-1280x800.png` (visão geral / recursos)
+  - `store-assets/screenshot-2-ladder-1280x800.png` (ladder)
+  - `store-assets/screenshot-3-legends-1280x800.png` (estatísticas de Legends)
+  - `store-assets/screenshot-4-partida-1280x800.png` (confirmação + reconexão)
+- **Marquee promo tile (1400×560):** `store-assets/marquee-1400x560.png`
+- **Small promo tile (440×280):** `store-assets/tile-440x280.png`
+
+Regenerar o kit: `node scratchpad/store-assets.mjs` (gerador em canvas) — ou me pedir.
 
 ---
 
