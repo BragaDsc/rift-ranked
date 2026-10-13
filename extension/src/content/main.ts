@@ -84,6 +84,7 @@ import * as D from "./detect";
       banned: (d) => "Fila bloqueada por conduta até " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) + ".",
       update: (v) => "Atualização v" + v + " disponível", download: "Baixar",
       connecting: "Conectando…", stillConnecting: "Ainda conectando…",
+      online: (n) => n + (n === 1 ? " jogador online" : " jogadores online"),
       notInLobby: "Vá para a tela inicial (onde aparece “Host Room”) para entrar na fila.",
       ready: "Pronto.", inGame: "Partida em andamento…", series: (a, b) => "Série " + a + "–" + b, noToken: "Não foi possível obter o token do RiftAtlas.",
       sounds: "Sons", sndMatch: "Encontrar partida", sndWin: "Vitória", sndLoss: "Derrota",
@@ -122,6 +123,7 @@ import * as D from "./detect";
       banned: (d) => "Queue blocked for conduct until " + d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) + ".",
       update: (v) => "Update v" + v + " available", download: "Download",
       connecting: "Connecting…", stillConnecting: "Still connecting…",
+      online: (n) => n + (n === 1 ? " player online" : " players online"),
       notInLobby: "Go to the home screen (where “Host Room” is) to join the queue.",
       ready: "Ready.", inGame: "Match in progress…", series: (a, b) => "Series " + a + "–" + b, noToken: "Couldn't get the RiftAtlas token.",
       sounds: "Sounds", sndMatch: "Match found", sndWin: "Victory", sndLoss: "Defeat",
@@ -160,6 +162,7 @@ import * as D from "./detect";
       banned: (d) => "因行为被禁赛至 " + d.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) + "。",
       update: (v) => "有新版本 v" + v, download: "下载",
       connecting: "连接中…", stillConnecting: "仍在连接…",
+      online: (n) => n + " 人在线",
       notInLobby: "请回到主界面（显示“Host Room”的页面）再加入队列。",
       ready: "就绪。", inGame: "对局进行中…", series: (a, b) => "系列赛 " + a + "–" + b, noToken: "无法获取 RiftAtlas 令牌。",
       sounds: "音效", sndMatch: "匹配成功", sndWin: "胜利", sndLoss: "失败",
@@ -245,6 +248,7 @@ import * as D from "./detect";
     selectorWarn: false, // UI do RiftAtlas mudou (âncora essencial sumiu) — mostra aviso
     oppGone: false,     // oponente desconectou/saiu da partida (sinal do RiftAtlas)
     oppGoneAt: 0,       // quando o oponente caiu (ms) — base do cronômetro de reconexão
+    online: null,       // jogadores online agora (do backend) — null = desconhecido
     concedeArm: false,  // botão desistir "armado" (aguardando confirmação)
     statusKey: () => T().connecting,
   };
@@ -311,7 +315,7 @@ import * as D from "./detect";
     ws.addEventListener("open", () =>
       send({ type: "auth", token, displayName: state.identity.username, riftatlasPlrId: state.plrId || undefined }));
     ws.addEventListener("message", (ev) => { let m; try { m = JSON.parse(ev.data); } catch { return; } handleServer(m); });
-    ws.addEventListener("close", () => { state.ws = null; state.authed = false; setStatus(() => T().connecting); setTimeout(maybeConnect, 3000); });
+    ws.addEventListener("close", () => { state.ws = null; state.authed = false; state.online = null; setStatus(() => T().connecting); updateUI(); setTimeout(maybeConnect, 3000); });
     ws.addEventListener("error", () => ws.close());
   }
   function send(o) { if (state.ws && state.ws.readyState === WebSocket.OPEN) state.ws.send(JSON.stringify(o)); }
@@ -359,6 +363,7 @@ import * as D from "./detect";
         for (const r of msg.ratings) state.ratings[r.format] = r;
         setStatus(() => T().ready); refreshProfile(); break;
       case "auth_error": setStatus(() => T().authFail(msg.message)); break;
+      case "online_count": state.online = typeof msg.count === "number" ? msg.count : null; updateUI(); break;
       case "queued": { const f = msg.format; state.queued = f; setStatus(() => T().queued(fmtShort(f))); break; }
       case "dequeued": state.queued = null; setStatus(() => T().dequeued); break;
       case "match_found":
@@ -794,6 +799,9 @@ import * as D from "./detect";
         #ranked-overlay .cancel:hover{background:rgba(80,30,34,.45)}
         #ranked-overlay .cancel.show{display:block}
         #ranked-overlay .status{margin-top:12px;font-size:12px;color:#b4bdca;min-height:16px;background:rgba(0,0,0,.25);border-radius:7px;padding:9px 11px;border:1px solid rgba(255,255,255,.05);border-left:2px solid rgba(200,170,110,.45)}
+        #ranked-overlay .online{display:none;align-items:center;gap:7px;margin-top:7px;font-size:11.5px;font-weight:600;color:#9fb0c0}
+        #ranked-overlay .rk-dot{width:7px;height:7px;border-radius:50%;background:#51c15a;box-shadow:0 0 0 0 rgba(81,193,90,.6);animation:rk-pulse 2s infinite}
+        @keyframes rk-pulse{0%{box-shadow:0 0 0 0 rgba(81,193,90,.5)}70%{box-shadow:0 0 0 5px rgba(81,193,90,0)}100%{box-shadow:0 0 0 0 rgba(81,193,90,0)}}
         #ranked-overlay .act-wrap{margin-top:8px;display:flex;gap:8px}
         #ranked-overlay .act-wrap:empty{display:none}
         #ranked-overlay .act{flex:1;cursor:pointer;border-radius:7px;padding:9px 0;font-weight:700;font-size:12px;border:1px solid;transition:.14s}
@@ -865,6 +873,7 @@ import * as D from "./detect";
         </div>
         <button class="cancel" id="rk-cancel">${t.leave}</button>
         <div class="status" id="rk-status">${t.connecting}</div>
+        <div class="online" id="rk-online"></div>
         <div class="act-wrap" id="rk-action"></div>
         <div id="rk-concede-wrap"></div>
         <div class="settings" id="rk-settings" style="display:none">
@@ -1024,6 +1033,14 @@ import * as D from "./detect";
     fmtCard(ui.querySelector("#fc-bo1"), "bo1", T().md1);
     fmtCard(ui.querySelector("#fc-bo3"), "bo3", T().md3);
     ui.querySelector("#rk-status").textContent = state.statusKey();
+    // contador de jogadores online (do backend); some quando desconhecido/desconectado
+    const onEl = ui.querySelector("#rk-online");
+    if (onEl) {
+      if (state.online != null && state.authed) {
+        onEl.innerHTML = `<span class="rk-dot"></span>${T().online(state.online)}`;
+        onEl.style.display = "flex";
+      } else { onEl.innerHTML = ""; onEl.style.display = "none"; }
+    }
     const busy = !!state.match;
     const canHost = !!(S && S.canHost && S.canHost());
     ui.querySelectorAll(".seg button").forEach((b) => {

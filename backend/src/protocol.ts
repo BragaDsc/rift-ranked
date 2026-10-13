@@ -57,4 +57,6 @@ export type ServerMessage =
   | { type: "confirm_prompt"; matchId: string }
   /** Retomada após reload: você ainda está nesta partida — restaure o contexto. */
   | { type: "match_active"; matchId: string; format: Format; side: Side; opponent: { displayName: string; rating: number }; state: string }
+  /** Jogadores online agora (conexões autenticadas). Transmitido a todos quando muda. */
+  | { type: "online_count"; count: number }
   | { type: "error"; message: string };

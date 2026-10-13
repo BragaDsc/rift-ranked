@@ -64,6 +64,16 @@ export function startServer(opts) {
             c.ws.send(JSON.stringify(msg));
         }
     };
+    // Jogadores online = conexões autenticadas distintas. Transmite a contagem a
+    // todos sempre que alguém entra/sai, para a extensão exibir em tempo real.
+    const onlineCount = () => connsByPlayer.size;
+    const broadcastOnline = () => {
+        const payload = JSON.stringify({ type: "online_count", count: onlineCount() });
+        for (const c of connsByPlayer.values()) {
+            if (c.ws.readyState === WebSocket.OPEN)
+                c.ws.send(payload);
+        }
+    };
     const orch = new Orchestrator(repo, send, opts.config ?? DEFAULT_CONFIG);
     // -------------------- HTTP (health + leaderboard) --------------------
     const httpServer = http.createServer(async (req, res) => {
@@ -157,6 +167,12 @@ export function startServer(opts) {
             }
             if (req.method === "GET" && url.pathname === "/ranked/api/health") {
                 res.end(JSON.stringify({ ok: true }));
+                return;
+            }
+            // jogadores online agora (conexões autenticadas)
+            if (req.method === "GET" && url.pathname === "/ranked/api/online") {
+                res.setHeader("Cache-Control", "no-store, must-revalidate");
+                res.end(JSON.stringify({ count: onlineCount() }));
                 return;
             }
             // versão da extensão (notificador de atualização)
@@ -309,6 +325,7 @@ export function startServer(opts) {
                     });
                     // retomada: se já estava numa partida (reload/reconexão), reenvia o contexto
                     orch.sendResume(player.id).catch(() => { });
+                    broadcastOnline(); // atualiza a contagem de online para todos
                 }
                 catch (err) {
                     send0(ws, { type: "auth_error", message: "Token inválido." });
@@ -325,6 +342,7 @@ export function startServer(opts) {
                 if (connsByPlayer.get(conn.playerId)?.ws === ws) {
                     connsByPlayer.delete(conn.playerId);
                 }
+                broadcastOnline(); // atualiza a contagem de online para todos
             }
         });
     });
