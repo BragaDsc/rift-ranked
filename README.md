@@ -79,8 +79,13 @@ ssh "$RANKED_HOST" "set -a; . /opt/riftatlas-ranked/.env; set +a; \
 
 ## Modelo de confiança (resumo)
 
-O placar/vencedor vem do cliente (WS do RiftAtlas interceptado). Ao fim da partida há
-uma **janela de confirmação**: os dois confirmam o vencedor; em divergência persistente,
-desempata pela **reputação** (likes). A ponte MAIN↔ISOLATED é validada por **nonce + origem**.
-Trapaça com cliente adulterado continua possível (limitação inerente a um overlay) —
-ver item “backend semi-autoritativo” como melhoria futura.
+O placar/vencedor vem do cliente (WS do RiftAtlas interceptado). Camadas de confiança:
+1. **Placar semi-autoritativo** (`scoreWatch`): o servidor cruza os `game_score` dos
+   DOIS clientes — um jogo só é "verdade" quando ambos corroboram o 8. Um cliente
+   adulterado sozinho não corrobora.
+2. **Janela de confirmação** (UX): os dois confirmam o vencedor ao fim da partida.
+3. Na **divergência**/timeout, decide o placar corroborado (1); sem corroboração, cai
+   para re-pergunta e, por fim, **reputação** (likes).
+A ponte MAIN↔ISOLATED é validada por **nonce + origem**. Trapaça com cliente adulterado
+fica muito mais difícil (precisa do conluio do oponente), mas não é 100% impossível —
+limitação inerente a um overlay sem acesso ao estado autoritativo do RiftAtlas.
