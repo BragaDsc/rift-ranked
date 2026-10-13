@@ -30,7 +30,7 @@ export const DEFAULT_CONFIG = {
     pairing: DEFAULT_PAIRING,
     matchedTimeoutMs: 90_000,
     roomReadyTimeoutMs: 90_000,
-    reconnectGraceMs: 300_000,
+    reconnectGraceMs: 60_000, // 1 min para o jogador que caiu voltar antes do W.O. automático
     griefWindowMs: 120_000,
     // janela de confirmação do vencedor (ambos confirmam antes de finalizar):
     confirmTimeoutMs: 30_000, // oponente tem 30s p/ responder; sem resposta, vale quem confirmou

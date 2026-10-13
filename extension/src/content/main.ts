@@ -94,6 +94,7 @@ import * as D from "./detect";
       selectorWarn: "A interface do RiftAtlas pode ter mudado — talvez seja preciso atualizar a extensão.",
       concede: "Desistir", concedeConfirm: "Desistir mesmo?", yes: "Sim", no: "Não",
       oppLeft: "Oponente saiu/desconectou da partida",
+      oppWait: (n) => "Oponente caiu — " + n + "s para voltar…",
       authFail: (m) => "Falha na autenticação: " + m,
       queued: (f) => `Na fila (${f})…`, dequeued: "Fora da fila.",
       foundHost: (n, r) => `Partida encontrada vs ${n} (${r}) — você hospeda`,
@@ -131,6 +132,7 @@ import * as D from "./detect";
       selectorWarn: "RiftAtlas's UI may have changed — the extension might need an update.",
       concede: "Concede", concedeConfirm: "Really concede?", yes: "Yes", no: "No",
       oppLeft: "Opponent left/disconnected",
+      oppWait: (n) => "Opponent dropped — " + n + "s to return…",
       authFail: (m) => "Authentication failed: " + m,
       queued: (f) => `In queue (${f})…`, dequeued: "Left the queue.",
       foundHost: (n, r) => `Match found vs ${n} (${r}) — you host`,
@@ -168,6 +170,7 @@ import * as D from "./detect";
       selectorWarn: "RiftAtlas 界面可能已变化 — 扩展可能需要更新。",
       concede: "认输", concedeConfirm: "确定认输？", yes: "是", no: "否",
       oppLeft: "对手已离开/掉线",
+      oppWait: (n) => "对手掉线——" + n + "秒内可重连…",
       authFail: (m) => "认证失败：" + m,
       queued: (f) => `匹配中（${f}）…`, dequeued: "已离开队列。",
       foundHost: (n, r) => `匹配成功 vs ${n}（${r}）— 由你创建房间`,
@@ -241,9 +244,15 @@ import * as D from "./detect";
     confirm: null,      // { winner:"me"|"opp", rate:null|"like"|"dislike", waiting, round, note } — janela de confirmação
     selectorWarn: false, // UI do RiftAtlas mudou (âncora essencial sumiu) — mostra aviso
     oppGone: false,     // oponente desconectou/saiu da partida (sinal do RiftAtlas)
+    oppGoneAt: 0,       // quando o oponente caiu (ms) — base do cronômetro de reconexão
     concedeArm: false,  // botão desistir "armado" (aguardando confirmação)
     statusKey: () => T().connecting,
   };
+  // janela de reconexão do oponente (1 min); espelha reconnectGraceMs do backend.
+  const OPP_GRACE_MS = 60000;
+  let oppGoneTimer = null;
+  function startOppGoneTimer() { stopOppGoneTimer(); oppGoneTimer = setInterval(updateUI, 1000); }
+  function stopOppGoneTimer() { if (oppGoneTimer) { clearInterval(oppGoneTimer); oppGoneTimer = null; } }
   function setStatus(fn) { state.statusKey = typeof fn === "function" ? fn : () => fn; updateUI(); }
 
   // -------------------- ponte com o inpage (MAIN) --------------------
@@ -353,7 +362,7 @@ import * as D from "./detect";
       case "queued": { const f = msg.format; state.queued = f; setStatus(() => T().queued(fmtShort(f))); break; }
       case "dequeued": state.queued = null; setStatus(() => T().dequeued); break;
       case "match_found":
-        state.queued = null; state.lastResult = null; state.oppGone = false; state.concedeArm = false;
+        state.queued = null; state.lastResult = null; state.oppGone = false; state.oppGoneAt = 0; state.concedeArm = false; stopOppGoneTimer();
         closeConfirm(); // limpa qualquer janela de confirmação pendente de uma partida anterior
         state.match = { matchId: msg.matchId, format: msg.format, side: msg.side, startedSent: false, confirmShown: false, oppName: msg.opponent?.displayName || "Oponente" };
         { const o = msg.opponent; setStatus(() => (msg.side === "host" ? T().foundHost : T().foundGuest)(o.displayName, Math.round(o.rating))); }
@@ -406,10 +415,10 @@ import * as D from "./detect";
         });
         seriesActive = false;
         closeConfirm();
-        state.match = null; state.griefWarning = null; refreshProfile(); setTimeout(refreshProfile, 3000); leaveToLobby(); break;
+        state.match = null; state.griefWarning = null; state.oppGone = false; state.oppGoneAt = 0; stopOppGoneTimer(); refreshProfile(); setTimeout(refreshProfile, 3000); leaveToLobby(); break;
       }
-      case "match_disputed": state.queued = null; setStatus(() => T().disputed); closeConfirm(); state.match = null; state.griefWarning = null; leaveToLobby(); break;
-      case "match_cancelled": { const m = msg; state.queued = null; setStatus(() => T().cancelled(m.reason)); closeConfirm(); state.match = null; state.griefWarning = null; leaveToLobby(); break; }
+      case "match_disputed": state.queued = null; setStatus(() => T().disputed); closeConfirm(); state.match = null; state.griefWarning = null; state.oppGone = false; state.oppGoneAt = 0; stopOppGoneTimer(); leaveToLobby(); break;
+      case "match_cancelled": { const m = msg; state.queued = null; setStatus(() => T().cancelled(m.reason)); closeConfirm(); state.match = null; state.griefWarning = null; state.oppGone = false; state.oppGoneAt = 0; stopOppGoneTimer(); leaveToLobby(); break; }
       case "grief_warning": state.griefWarning = { matchId: msg.matchId }; setStatus(() => T().griefAccused); break;
       case "grief_cleared": state.griefWarning = null; break;
       case "queue_blocked": { const until = new Date(msg.until); setStatus(() => T().banned(until)); break; }
@@ -533,9 +542,16 @@ import * as D from "./detect";
       setStatus(() => T().inGame); // feedback visível no overlay
     }
 
-    // queda/saída do oponente (sinal do RiftAtlas: disconnectedAtByPlayerId)
+    // queda/saída do oponente (sinal do RiftAtlas: disconnectedAtByPlayerId).
+    // O jogador tem OPP_GRACE_MS (1 min) para voltar antes do W.O. — o backend
+    // resolve automaticamente ao fim desse prazo (reconnectGraceMs).
     const oppGone = Array.isArray(gs.disconnected) && gs.disconnected.some((id) => id && id !== me);
-    if (oppGone !== state.oppGone) { state.oppGone = oppGone; updateUI(); }
+    if (oppGone !== state.oppGone) {
+      state.oppGone = oppGone;
+      if (oppGone) { state.oppGoneAt = Date.now(); startOppGoneTimer(); }
+      else { state.oppGoneAt = 0; stopOppGoneTimer(); }
+      updateUI();
+    }
 
     // placar -> informa o backend (ordenado host/joiner)
     if (gs.scores && me && m.side) {
@@ -787,6 +803,7 @@ import * as D from "./detect";
         #ranked-overlay .act.contest:hover{background:rgba(90,136,196,.26)}
         #ranked-overlay .act[disabled]{opacity:.45;cursor:default}
         #ranked-overlay .opp-gone{margin-bottom:7px;font-size:11.5px;font-weight:700;color:#e8b2ae;background:rgba(192,97,93,.14);border:1px solid rgba(192,97,93,.34);border-radius:7px;padding:7px 9px;text-align:center}
+        #ranked-overlay .opp-gone.wait{color:#e8cfa0;background:rgba(200,170,110,.13);border-color:rgba(200,170,110,.34)}
         #ranked-overlay #rk-concede-wrap:empty{display:none}
         #ranked-overlay .concede-btn{width:100%;margin-top:8px;cursor:pointer;border:1px solid rgba(192,97,93,.3);background:rgba(60,25,28,.22);color:#c99;border-radius:7px;padding:7px 0;font-weight:600;font-size:11px;transition:.14s}
         #ranked-overlay .concede-btn:hover{background:rgba(80,30,34,.4);color:#e0a3a0}
@@ -1019,7 +1036,14 @@ import * as D from "./detect";
     // botões de ação em partida
     const act = ui.querySelector("#rk-action");
     if (state.griefWarning) act.innerHTML = `<button class="act contest">${T().contest}</button>`;
-    else if (state.oppGone && state.match) act.innerHTML = `<div class="opp-gone">⚠ ${T().oppLeft}</div><button class="act claim">${T().claimWin}</button>`;
+    else if (state.oppGone && state.match) {
+      // 1 min para o oponente voltar: durante a janela mostra o cronômetro;
+      // depois libera a reivindicação de vitória (o backend também dá o W.O.).
+      const left = Math.ceil((OPP_GRACE_MS - (Date.now() - (state.oppGoneAt || 0))) / 1000);
+      act.innerHTML = left > 0
+        ? `<div class="opp-gone wait">⏳ ${T().oppWait(left)}</div>`
+        : `<div class="opp-gone">⚠ ${T().oppLeft}</div><button class="act claim">${T().claimWin}</button>`;
+    }
     else act.innerHTML = "";
     // botão "Desistir" (com confirmação) durante a partida
     const cw = ui.querySelector("#rk-concede-wrap");
