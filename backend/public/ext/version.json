@@ -1,5 +1,5 @@
 {
-  "version": "0.3.29",
-  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.29",
-  "notes": "Adiciona o ícone da extensão (Rift Ranked) e prepara o pacote para a Chrome Web Store."
+  "version": "0.3.30",
+  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.30",
+  "notes": "Remove a permissão 'storage' (não usada — a extensão usa o localStorage do site) e ajusta a documentação. Prepara a publicação na Chrome Web Store."
 }

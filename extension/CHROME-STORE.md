@@ -3,7 +3,7 @@
 Tudo que você precisa para subir a extensão. O pacote já está pronto.
 
 ## Arquivo para subir
-`extension/rift-ranked-chrome-0.3.29.zip`
+`extension/rift-ranked-chrome-0.3.30.zip`
 (gere novas versões com: `pwsh -File scripts/build-chrome-zip.ps1`)
 
 Conteúdo do zip: `manifest.json` (versão Chrome, sem o bloco `gecko` do Firefox) + `dist/inpage.js` + `dist/content.js` + `icons/` (16/48/128).
@@ -79,22 +79,32 @@ https://app.megacards.com.br/ranked/privacidade
 
 **Finalidade única (single purpose)**
 ```
-Adicionar um sistema de ranqueado (fila, pareamento e estatísticas) ao simulador RiftAtlas.
+O Rift Ranked tem uma única finalidade: oferecer um sistema de ranqueado para o
+simulador de cartas RiftAtlas (play.riftatlas.com). A extensão coloca o jogador
+em uma fila, faz o pareamento por habilidade (MMR, sistema Glicko-2), orquestra a
+sala da partida, registra o resultado e exibe o ladder, os perfis e as
+estatísticas de Legends. Ela só atua nas páginas do RiftAtlas e se comunica apenas
+com o servidor do ranqueado — não executa nenhuma outra função.
 ```
 
 **Justificativa de cada permissão**
-- `storage`:
+
+A extensão NÃO declara nenhuma permissão de API (ex.: `storage`, `tabs`, `scripting`,
+`cookies`, `activeTab`) — usa apenas o armazenamento local da própria página. Só pede
+acesso aos dois hosts estritamente necessários:
+
+- Host `https://play.riftatlas.com/*`:
 ```
-Salvar preferências locais do usuário (idioma e sons) no próprio navegador.
+É onde a extensão funciona. O content script injetado nessa página lê o estado da partida em andamento (fase, placar e a Legend em jogo) para detectar o início, o fim e o vencedor. Sem esse acesso a extensão não tem o que ler.
 ```
-- Host `play.riftatlas.com`:
+- Host `https://app.megacards.com.br/*`:
 ```
-Ler o estado da partida em andamento (fase, placar e Legend) para detectar início, fim e vencedor.
+É o servidor do ranqueado. A extensão se conecta a esse host (API e WebSocket) para entrar na fila, parear por MMR, orquestrar a sala, reportar o resultado e buscar ladder/estatísticas. Sem esse acesso não há ranqueado.
 ```
-- Host `app.megacards.com.br`:
-```
-Comunicar com o servidor do ranqueado (fila, pareamento, resultados e estatísticas).
-```
+
+> Nota de revisão: nenhuma permissão foi mantida sem uso. A permissão `storage` foi
+> removida na v0.3.30 porque a extensão guarda preferências no `localStorage` do site,
+> que não exige permissão.
 
 **Uso de dados — declare:**
 - Coleta identificador/nome do jogador e dados de partida (resultado, Legend, placar). ✔
