@@ -11,6 +11,7 @@
 (() => {
   "use strict";
   const S = self.RankedSelectors;
+  const D = self.RankedDetect; // detecção de vencedor/série (lógica pura — detect.js)
   const TAG = "__ranked";
   const LADDER_URL = "https://app.megacards.com.br/ranked";
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -481,15 +482,15 @@
   }
 
   // -------------------- estado do jogo (via inpage) --------------------
-  // Condição de vitória do RiftAtlas: 8 pontos de conquista (campo `score`).
+  // Condição de vitória do RiftAtlas: 8 pontos de conquista (ver detect.js).
   // Md1 = 1 jogo decide; Md3 = melhor de 3, primeiro a 2 vitórias.
-  const WIN_SCORE = 8;
   // placar da série (para exibir no overlay e no resultado final)
   let seriesMy = 0, seriesOpp = 0, seriesActive = false;
   function showSeries(m, me) {
-    seriesMy = m.gameWins[me] || 0;
-    const oppId = Object.keys(m.gameWins).find((id) => id !== me);
-    seriesOpp = oppId ? (m.gameWins[oppId] || 0) : 0;
+    const gw = (m.det && m.det.gameWins) || {};
+    seriesMy = gw[me] || 0;
+    const oppId = Object.keys(gw).find((id) => id !== me);
+    seriesOpp = oppId ? (gw[oppId] || 0) : 0;
     seriesActive = true;
     setStatus(() => T().series(seriesMy, seriesOpp));
   }
@@ -518,47 +519,19 @@
       }
     }
 
-    // só considera um vencedor DEPOIS de ter visto o jogo em andamento (algum placar
-    // abaixo de 8) nesta partida. Evita contar um "8" obsoleto herdado do jogo
-    // anterior (estado em memória) como vitória falsa logo no 1º frame.
+    // detecção de vencedor/série — lógica pura e testável (ver detect.js):
+    // conta 1 vitória por jogo (trava anti-dupla), exige ter visto o jogo em
+    // andamento (placar < 8) para não contar um "8" obsoleto, e resolve a série
+    // (Md1 = 1 vitória, Md3 = 2). Ao fechar a série, abre a confirmação do vencedor.
     if (gs.scores) {
-      const vals = Object.values(gs.scores).filter((v) => typeof v === "number");
-      if (vals.length && Math.max(...vals) < WIN_SCORE) m.sawProgress = true;
-    }
-
-    // vencedor de UM JOGO: campo explícito (se existir) OU quem chegou a 8 pontos
-    let gameWinnerId = gs.winnerPlayerId || null;
-    if (!gameWinnerId && gs.scores) {
-      for (const [pid, sc] of Object.entries(gs.scores)) {
-        if (typeof sc === "number" && sc >= WIN_SCORE) { gameWinnerId = pid; break; }
+      if (!m.det) m.det = D.initDetect();
+      const res = D.applyScores(m.det, gs.scores);
+      if (res.countedGame && m.format === "bo3" && me) showSeries(m, me); // 1–0, 1–1, 2–1…
+      const winner = D.seriesWinner(m.det, m.format);
+      if (!m.confirmShown && winner && me) {
+        m.confirmShown = true;
+        openConfirm(winner === me ? "me" : "opp");
       }
-    }
-
-    // contagem da série: soma 1 vitória por jogo. A trava `gameCounted` garante uma
-    // contagem por jogo; destrava quando o placar cai de 8 (novo jogo começou — no
-    // Md3 o RiftAtlas zera o placar e recomeça na mesma sala).
-    m.gameWins = m.gameWins || {};
-    if (gameWinnerId && m.sawProgress) {
-      if (!m.gameCounted) {
-        m.gameCounted = true;
-        m.gameWins[gameWinnerId] = (m.gameWins[gameWinnerId] || 0) + 1;
-        if (m.format === "bo3" && me) showSeries(m, me); // 1–0, 1–1, 2–1…
-      }
-    } else if (m.gameCounted) {
-      m.gameCounted = false; // placar < 8 → próximo jogo
-    }
-
-    // fim do MATCH: Md1 precisa de 1 vitória; Md3 precisa de 2.
-    const need = m.format === "bo3" ? 2 : 1;
-    let seriesWinner = null;
-    for (const [pid, w] of Object.entries(m.gameWins)) {
-      if (w >= need) { seriesWinner = pid; break; }
-    }
-    // Em vez de finalizar direto, abre a janela de confirmação do vencedor (pré-marcada
-    // com o vencedor detectado). Só finaliza quando ambos confirmarem — ver openConfirm.
-    if (!m.confirmShown && seriesWinner && me) {
-      m.confirmShown = true;
-      openConfirm(seriesWinner === me ? "me" : "opp");
     }
   }
 
@@ -968,6 +941,10 @@
   }
 
   // ----------------------------- boot -----------------------------
-  function boot() { if (!document.body) return setTimeout(boot, 200); buildUI(); updateUI(); checkUpdate(); }
+  function boot() {
+    if (!document.body) return setTimeout(boot, 200);
+    buildUI(); updateUI(); checkUpdate();
+    setInterval(checkUpdate, 15 * 60 * 1000); // reconfere atualização a cada 15 min
+  }
   boot();
 })();

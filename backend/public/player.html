@@ -29,6 +29,8 @@
     .phead { display: flex; align-items: center; gap: 16px; margin-bottom: 22px; }
     .pav { width: 56px; height: 56px; border-radius: 10px; display: grid; place-items: center; font-weight: 800; font-size: 24px; color: #0b0f16; flex: none; }
     .pname { font-size: 22px; font-weight: 800; letter-spacing: .3px; }
+    .prep { font-size: 12px; color: #8b94a3; margin-top: 4px; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .prep .up { color: #7fc47a; } .prep .dn { color: #d1706c; }
     .psub { color: var(--muted); font-size: 12.5px; margin-top: 3px; letter-spacing: .3px; }
     .fmts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
     .fcard { background: var(--bg2); border: 1px solid var(--line2); border-radius: 8px; padding: 14px 16px; cursor: pointer; transition: .12s; }
@@ -240,10 +242,14 @@
       catch { app.innerHTML = `<div class="state">${t().notFound}</div>`; return; }
       const name = data.player.displayName;
       const idTag = data.player.id ? ` <span style="font-size:14px;font-weight:600;color:#6b7686;letter-spacing:.3px;vertical-align:middle">#${String(data.player.id).replace(/[^0-9a-f]/gi, "").slice(0, 4).toUpperCase()}</span>` : "";
+      const rep = data.reputation || { likes: 0, dislikes: 0 };
+      const repHtml = (rep.likes || rep.dislikes)
+        ? `<div class="prep"><span class="up">👍 ${rep.likes}</span> · <span class="dn">👎 ${rep.dislikes}</span></div>`
+        : "";
       app.innerHTML = `
         <div class="phead">
           <div class="pav" style="background:${avColor(name)}">${esc((name[0] || "?").toUpperCase())}</div>
-          <div><div class="pname">${esc(name)}${idTag}</div><div class="psub">${t().sub}</div></div>
+          <div><div class="pname">${esc(name)}${idTag}</div><div class="psub">${t().sub}</div>${repHtml}</div>
         </div>
         <div class="fmts">${fmtCard(t().fmt1, data.bo1, "bo1")}${fmtCard(t().fmt3, data.bo3, "bo3")}</div>
         <div class="panel">

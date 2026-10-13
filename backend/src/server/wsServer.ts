@@ -110,11 +110,13 @@ export function startServer(opts) {
                         rank: rankFor(r.rating, r.gamesPlayed),
                     };
                 };
+                const reputation = (await repo.getLikeStats?.(id)) ?? { likes: 0, dislikes: 0, net: 0 };
                 res.end(JSON.stringify({
                     player: { id: player.id, displayName: player.displayName },
                     format,
                     bo1: await summary("bo1"),
                     bo3: await summary("bo3"),
+                    reputation,
                     history: await repo.ratingHistory(id, format, 200),
                 }));
                 return;
