@@ -757,24 +757,24 @@ import * as D from "./detect";
         #ranked-overlay::after{content:"";position:absolute;left:-40%;top:-60%;width:180%;height:150%;pointer-events:none;
           background:radial-gradient(closest-side,rgba(200,170,110,.10),transparent 70%)}
         #ranked-overlay.dragging{opacity:.96}
-        #ranked-overlay .hd{position:relative;z-index:1;display:flex;align-items:center;gap:11px;padding:13px 14px;cursor:move;user-select:none;
+        #ranked-overlay .hd{position:relative;z-index:1;display:flex;align-items:center;gap:9px;padding:12px;cursor:move;user-select:none;
           background:linear-gradient(180deg,rgba(200,170,110,.08),transparent);border-bottom:1px solid rgba(200,170,110,.12)}
         #ranked-overlay .hd .mk{width:32px;height:32px;display:grid;place-items:center;flex:none;border-radius:9px;
           background:linear-gradient(160deg,rgba(232,207,148,.28),rgba(160,123,56,.06));
           border:1px solid rgba(200,170,110,.35);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 2px 6px rgba(0,0,0,.3)}
         #ranked-overlay .hd .wm{line-height:1}
         #ranked-overlay .hd .wm .a{font-size:9px;letter-spacing:3px;color:#c8aa6e;font-weight:800}
-        #ranked-overlay .hd .wm .b{display:flex;align-items:center;gap:6px;font-size:14px;letter-spacing:.3px;font-weight:800;margin-top:4px;color:#f3f6fb}
-        #ranked-overlay .hd .wm .b .ver{color:#6b778a;font-weight:700;font-size:9px;letter-spacing:.3px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);border-radius:5px;padding:1px 5px}
-        #ranked-overlay .hd .sp{flex:1}
-        #ranked-overlay .lang{display:flex;gap:2px;background:rgba(0,0,0,.35);border-radius:8px;padding:2px;border:1px solid rgba(255,255,255,.05)}
-        #ranked-overlay .lang button{cursor:pointer;background:0;border:0;color:#6a7484;font-size:10px;font-weight:800;padding:3px 6px;border-radius:6px;transition:.14s}
+        #ranked-overlay .hd .wm .b{display:flex;align-items:center;gap:5px;font-size:13.5px;letter-spacing:.2px;font-weight:800;margin-top:4px;color:#f3f6fb}
+        #ranked-overlay .hd .wm .b .ver{color:#6b778a;font-weight:700;font-size:8.5px;letter-spacing:.3px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);border-radius:5px;padding:1px 4px}
+        #ranked-overlay .hd .sp{flex:1;min-width:4px}
+        #ranked-overlay .lang{display:flex;gap:1px;background:rgba(0,0,0,.35);border-radius:7px;padding:2px;border:1px solid rgba(255,255,255,.05)}
+        #ranked-overlay .lang button{cursor:pointer;background:0;border:0;color:#6a7484;font-size:10px;font-weight:800;padding:3px 5px;border-radius:5px;transition:.14s}
         #ranked-overlay .lang button:hover{color:#aeb8c6}
         #ranked-overlay .lang button.on{color:#120d02;background:linear-gradient(180deg,#eccf88,#c8aa6e);box-shadow:0 1px 3px rgba(0,0,0,.35)}
-        #ranked-overlay .hd .cl,#ranked-overlay .hd .cfg{cursor:pointer;color:#6a7484;background:0;border:0;line-height:1;padding:4px 6px;border-radius:7px;transition:.14s}
-        #ranked-overlay .hd .cl:hover,#ranked-overlay .hd .cfg:hover{color:#e8cf94;background:rgba(255,255,255,.06)}
-        #ranked-overlay .hd .cl{font-size:18px}
-        #ranked-overlay .hd .cfg{font-size:14px}
+        #ranked-overlay .hd .cl,#ranked-overlay .hd .cfg{cursor:pointer;color:#b9c3d1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);line-height:1;border-radius:7px;transition:.14s;display:grid;place-items:center;width:22px;height:22px;flex:none;padding:0}
+        #ranked-overlay .hd .cl:hover,#ranked-overlay .hd .cfg:hover{color:#f0d89a;background:rgba(200,170,110,.18);border-color:rgba(200,170,110,.45)}
+        #ranked-overlay .hd .cl{font-size:18px;font-weight:700;padding-bottom:2px}
+        #ranked-overlay .hd .cfg{font-size:13px}
         #ranked-overlay .bd{position:relative;z-index:1;padding:13px 14px 14px}
         #ranked-overlay .cards{display:flex;flex-direction:column;gap:9px;margin-bottom:13px}
         #ranked-overlay .fc{position:relative;display:flex;align-items:center;gap:12px;background:linear-gradient(180deg,#14223c,#0e1a2e);border:1px solid rgba(200,170,110,.12);border-radius:12px;padding:11px 12px;transition:border-color .16s,transform .16s,box-shadow .16s;overflow:hidden}

@@ -1,5 +1,5 @@
 {
-  "version": "0.3.34",
-  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.34",
-  "notes": "UI repaginada: painel mais moderno e profissional (cartões de rank, botões e header refinados). Minimizar e arrastar o painel continuam funcionando."
+  "version": "0.3.35",
+  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.35",
+  "notes": "Corrige os botoes de minimizar e configuracoes que ficavam cortados na borda do painel; agora sao chips visiveis."
 }
