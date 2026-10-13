@@ -28,5 +28,5 @@ Thumbs.db
 *.tmp
 debug-frames.json
 
-# Chrome Web Store build artifact
-extension/rift-ranked-chrome-*.zip
+# pacotes empacotados (artefatos de build; distribuídos via GitHub Releases)
+extension/rift-ranked-*.zip

@@ -6,6 +6,16 @@ oficial e aparece por cima do RiftAtlas — não precisa criar conta nem configu
 > **Requisito:** ter uma conta no RiftAtlas e estar logado em **https://play.riftatlas.com**.
 > A extensão usa o seu login do RiftAtlas para te identificar no ranqueado.
 
+## ⬇️ Baixar a extensão
+
+Pegue o pacote na página de **[Releases do GitHub](https://github.com/BragaDsc/rift-ranked/releases/latest)**:
+
+- **Chrome / Edge / Brave:** [`rift-ranked-chrome-0.3.30.zip`](https://github.com/BragaDsc/rift-ranked/releases/download/v0.3.30/rift-ranked-chrome-0.3.30.zip)
+- **Firefox 128+:** [`rift-ranked-firefox-0.3.30.zip`](https://github.com/BragaDsc/rift-ranked/releases/download/v0.3.30/rift-ranked-firefox-0.3.30.zip)
+
+Alternativa (mesmo pacote, sempre a versão publicada no servidor):
+**https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip**
+
 ---
 
 ## Google Chrome / Microsoft Edge / Brave
