@@ -1,5 +1,5 @@
 {
-  "version": "0.3.31",
-  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.31",
-  "notes": "Mostra no painel quantos jogadores estão online no ranqueado agora (atualizado em tempo real)."
+  "version": "0.3.32",
+  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.32",
+  "notes": "Corrige a conexão: o RiftAtlas parou de expor window.Clerk; a extensão agora lê a identidade e o token da sessão pelo cookie __session (JWT do Clerk). Resolve o travamento em 'Conectando…'."
 }

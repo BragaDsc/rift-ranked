@@ -10,8 +10,8 @@ oficial e aparece por cima do RiftAtlas — não precisa criar conta nem configu
 
 Pegue o pacote na página de **[Releases do GitHub](https://github.com/BragaDsc/rift-ranked/releases/latest)**:
 
-- **Chrome / Edge / Brave:** [`rift-ranked-chrome-0.3.31.zip`](https://github.com/BragaDsc/rift-ranked/releases/download/v0.3.31/rift-ranked-chrome-0.3.31.zip)
-- **Firefox 128+:** [`rift-ranked-firefox-0.3.31.zip`](https://github.com/BragaDsc/rift-ranked/releases/download/v0.3.31/rift-ranked-firefox-0.3.31.zip)
+- **Chrome / Edge / Brave:** [`rift-ranked-chrome-0.3.32.zip`](https://github.com/BragaDsc/rift-ranked/releases/download/v0.3.32/rift-ranked-chrome-0.3.32.zip)
+- **Firefox 128+:** [`rift-ranked-firefox-0.3.32.zip`](https://github.com/BragaDsc/rift-ranked/releases/download/v0.3.32/rift-ranked-firefox-0.3.32.zip)
 
 Alternativa (mesmo pacote, sempre a versão publicada no servidor):
 **https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip**
@@ -70,7 +70,7 @@ Você **não precisa** digitar servidor, usuário ou senha: a conexão com
   (F5). No Firefox, confira se a versão é **128+**.
 - **"Não foi possível obter o token do RiftAtlas":** faça login no RiftAtlas e recarregue.
 - **Versão antiga / comportamento estranho:** em `chrome://extensions`, clique em
-  **Atualizar**/recarregar na extensão. A versão atual é a **0.3.31**.
+  **Atualizar**/recarregar na extensão. A versão atual é a **0.3.32**.
 - **Nada acontece ao chegar a 8 pontos:** geralmente é uma aba aberta antes da atualização —
   recarregue o RiftAtlas nas duas contas.
 

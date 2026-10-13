@@ -214,26 +214,46 @@
     }
   }
 
-  // ---------------------- 2) Identidade Clerk ----------------------
-  function readClerk() {
+  // ---------------------- 2) Identidade (Clerk) ----------------------
+  // O RiftAtlas migrou o Clerk e NÃO expõe mais window.Clerk. A sessão agora fica
+  // no cookie __session — um JWT do Clerk com sub = user id e name/nickname. Lemos
+  // dele (identidade + token), com window.Clerk como fallback caso volte a existir.
+  function sessionToken() {
+    try {
+      const m = document.cookie.match(/(?:^|;\s*)__session=([^;]+)/);
+      return m ? decodeURIComponent(m[1]) : null;
+    } catch { return null; }
+  }
+  function decodeJwt(t: string): any {
+    try {
+      const b = t.split(".")[1];
+      return JSON.parse(atob(b.replace(/-/g, "+").replace(/_/g, "/")));
+    } catch { return null; }
+  }
+  function readIdentity() {
+    // 1) window.Clerk (compat com a versão antiga do RiftAtlas)
     const c = window.Clerk;
-    if (!c || !c.loaded) return null;
-    if (!c.user) return { loaded: true, user: null };
-    return {
-      loaded: true,
-      user: {
-        id: c.user.id,
-        username: c.user.username || c.user.firstName || "Jogador",
-      },
-    };
+    if (c && c.loaded && c.user) {
+      return { id: c.user.id, username: c.user.username || c.user.firstName || "Jogador" };
+    }
+    // 2) cookie __session (Clerk atual, sem window.Clerk)
+    const p = decodeJwt(sessionToken() || "");
+    if (p && p.sub) {
+      const name = (typeof p.nickname === "string" && p.nickname) ||
+        (typeof p.username === "string" && p.username) ||
+        (typeof p.name === "string" && p.name) ||
+        (typeof p.given_name === "string" && p.given_name) || "Jogador";
+      return { id: p.sub, username: name };
+    }
+    return null;
   }
 
   let announced = false;
   const identityPoll = setInterval(() => {
-    const info = readClerk();
-    if (info && info.user && !announced) {
+    const user = readIdentity();
+    if (user && !announced) {
       announced = true;
-      post({ kind: "identity", user: info.user });
+      post({ kind: "identity", user });
       clearInterval(identityPoll);
     }
   }, 500);
@@ -245,12 +265,10 @@
     if (!d || d[TAG] !== true || d.dir !== "toPage") return;
     if (d.n !== NONCE) return; // carimbo da sessão ausente/errado → descarta
     if (d.kind === "getToken") {
-      try {
-        const token = await window.Clerk?.session?.getToken();
-        post({ kind: "token", reqId: d.reqId, token: token || null });
-      } catch {
-        post({ kind: "token", reqId: d.reqId, token: null });
-      }
+      let token: string | null = null;
+      try { token = (await window.Clerk?.session?.getToken?.()) || null; } catch { /* sem window.Clerk */ }
+      if (!token) token = sessionToken(); // fallback: cookie __session (JWT da sessão Clerk)
+      post({ kind: "token", reqId: d.reqId, token: token || null });
     } else if (d.kind === "getCapture") {
       post({ kind: "capture", reqId: d.reqId, frames: capBuf });
     }
