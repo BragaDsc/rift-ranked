@@ -1,5 +1,5 @@
 {
-  "version": "0.3.33",
-  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.33",
-  "notes": "Corrige 'falha de autenticação': o cookie __session do RiftAtlas expira em ~60s e não é renovado; a extensão agora gera um token fresco pela API do Clerk a cada conexão. Resolve de vez o travamento em 'Conectando…'."
+  "version": "0.3.34",
+  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.34",
+  "notes": "UI repaginada: painel mais moderno e profissional (cartões de rank, botões e header refinados). Minimizar e arrastar o painel continuam funcionando."
 }

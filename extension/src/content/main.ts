@@ -748,100 +748,104 @@ import * as D from "./detect";
     const t = T();
     return `
       <style>
-        #ranked-overlay{position:fixed;right:18px;bottom:18px;z-index:2147483000;width:300px;
-          font:13px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:#dbe2ee;
-          background:linear-gradient(180deg,#0e1728,#0a0f1c);border:1px solid rgba(200,170,110,.28);border-radius:10px;
-          box-shadow:0 20px 50px -20px rgba(0,0,0,.85),0 0 0 1px rgba(0,0,0,.35);overflow:hidden}
-        #ranked-overlay::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;
-          background:linear-gradient(90deg,transparent,#c8aa6e,#e4c877,#c8aa6e,transparent);opacity:.85;pointer-events:none}
-        #ranked-overlay .hd{position:relative;display:flex;align-items:center;gap:10px;padding:12px 13px 11px;cursor:move;user-select:none;
-          background:linear-gradient(180deg,rgba(200,170,110,.07),transparent);border-bottom:1px solid rgba(200,170,110,.14)}
-        #ranked-overlay.dragging{opacity:.95}
-        #ranked-overlay .hd .mk{width:28px;height:28px;display:grid;place-items:center;flex:none;border-radius:7px;
-          background:radial-gradient(circle at 50% 28%,rgba(200,170,110,.24),rgba(200,170,110,.03));border:1px solid rgba(200,170,110,.3)}
+        #ranked-overlay{position:fixed;right:18px;bottom:18px;z-index:2147483000;width:320px;
+          font:13px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:#e7ecf4;
+          background:linear-gradient(180deg,#0e1a2e,#080d18);border:1px solid rgba(200,170,110,.22);border-radius:16px;
+          box-shadow:0 28px 70px -28px rgba(0,0,0,.92),0 2px 8px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.04);overflow:hidden}
+        #ranked-overlay::before{content:"";position:absolute;inset:0 0 auto 0;height:1px;z-index:2;
+          background:linear-gradient(90deg,transparent,rgba(232,207,148,.8),transparent);pointer-events:none}
+        #ranked-overlay::after{content:"";position:absolute;left:-40%;top:-60%;width:180%;height:150%;pointer-events:none;
+          background:radial-gradient(closest-side,rgba(200,170,110,.10),transparent 70%)}
+        #ranked-overlay.dragging{opacity:.96}
+        #ranked-overlay .hd{position:relative;z-index:1;display:flex;align-items:center;gap:11px;padding:13px 14px;cursor:move;user-select:none;
+          background:linear-gradient(180deg,rgba(200,170,110,.08),transparent);border-bottom:1px solid rgba(200,170,110,.12)}
+        #ranked-overlay .hd .mk{width:32px;height:32px;display:grid;place-items:center;flex:none;border-radius:9px;
+          background:linear-gradient(160deg,rgba(232,207,148,.28),rgba(160,123,56,.06));
+          border:1px solid rgba(200,170,110,.35);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 2px 6px rgba(0,0,0,.3)}
         #ranked-overlay .hd .wm{line-height:1}
-        #ranked-overlay .hd .wm .a{font-size:9px;letter-spacing:2.5px;color:#c8aa6e;font-weight:800}
-        #ranked-overlay .hd .wm .b{font-size:12.5px;letter-spacing:.3px;font-weight:700;margin-top:3px;color:#eef1f6}
-        #ranked-overlay .hd .wm .b .ver{color:#5a6676;font-weight:600;font-size:9.5px;letter-spacing:0}
+        #ranked-overlay .hd .wm .a{font-size:9px;letter-spacing:3px;color:#c8aa6e;font-weight:800}
+        #ranked-overlay .hd .wm .b{display:flex;align-items:center;gap:6px;font-size:14px;letter-spacing:.3px;font-weight:800;margin-top:4px;color:#f3f6fb}
+        #ranked-overlay .hd .wm .b .ver{color:#6b778a;font-weight:700;font-size:9px;letter-spacing:.3px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);border-radius:5px;padding:1px 5px}
         #ranked-overlay .hd .sp{flex:1}
-        #ranked-overlay .lang{display:flex;gap:1px;margin-right:2px;background:rgba(0,0,0,.28);border-radius:6px;padding:2px}
-        #ranked-overlay .lang button{cursor:pointer;background:0;border:0;color:#5f6a7a;font-size:10px;font-weight:700;padding:2px 5px;border-radius:4px;transition:.12s}
-        #ranked-overlay .lang button:hover{color:#9aa6b6}
-        #ranked-overlay .lang button.on{color:#0b0f16;background:linear-gradient(180deg,#e4c877,#c8aa6e)}
-        #ranked-overlay .hd .cl{cursor:pointer;color:#6b7686;font-size:17px;background:0;border:0;line-height:1;padding:2px 6px;border-radius:5px}
-        #ranked-overlay .hd .cl:hover{color:#c8aa6e;background:rgba(255,255,255,.05)}
-        #ranked-overlay .bd{padding:12px 13px}
-        #ranked-overlay .cards{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
-        #ranked-overlay .fc{display:flex;align-items:center;gap:11px;background:linear-gradient(180deg,#121d32,#0d1626);border:1px solid rgba(200,170,110,.1);border-radius:9px;padding:10px 11px;transition:border-color .15s,transform .15s}
-        #ranked-overlay .fc:hover{border-color:rgba(200,170,110,.26)}
+        #ranked-overlay .lang{display:flex;gap:2px;background:rgba(0,0,0,.35);border-radius:8px;padding:2px;border:1px solid rgba(255,255,255,.05)}
+        #ranked-overlay .lang button{cursor:pointer;background:0;border:0;color:#6a7484;font-size:10px;font-weight:800;padding:3px 6px;border-radius:6px;transition:.14s}
+        #ranked-overlay .lang button:hover{color:#aeb8c6}
+        #ranked-overlay .lang button.on{color:#120d02;background:linear-gradient(180deg,#eccf88,#c8aa6e);box-shadow:0 1px 3px rgba(0,0,0,.35)}
+        #ranked-overlay .hd .cl,#ranked-overlay .hd .cfg{cursor:pointer;color:#6a7484;background:0;border:0;line-height:1;padding:4px 6px;border-radius:7px;transition:.14s}
+        #ranked-overlay .hd .cl:hover,#ranked-overlay .hd .cfg:hover{color:#e8cf94;background:rgba(255,255,255,.06)}
+        #ranked-overlay .hd .cl{font-size:18px}
+        #ranked-overlay .hd .cfg{font-size:14px}
+        #ranked-overlay .bd{position:relative;z-index:1;padding:13px 14px 14px}
+        #ranked-overlay .cards{display:flex;flex-direction:column;gap:9px;margin-bottom:13px}
+        #ranked-overlay .fc{position:relative;display:flex;align-items:center;gap:12px;background:linear-gradient(180deg,#14223c,#0e1a2e);border:1px solid rgba(200,170,110,.12);border-radius:12px;padding:11px 12px;transition:border-color .16s,transform .16s,box-shadow .16s;overflow:hidden}
+        #ranked-overlay .fc::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,#e8cf94,#a07b38);opacity:.75}
+        #ranked-overlay .fc:hover{border-color:rgba(200,170,110,.32);transform:translateY(-1px);box-shadow:0 10px 24px -14px rgba(200,170,110,.4)}
         #ranked-overlay .fc .in{flex:1;min-width:0}
-        #ranked-overlay .fc .l1{display:flex;align-items:center;gap:7px}
-        #ranked-overlay .fc .fl{font-size:9px;font-weight:800;letter-spacing:.5px;color:#0b0f16;background:linear-gradient(180deg,#e4c877,#c8aa6e);border-radius:4px;padding:2px 5px;flex:none}
-        #ranked-overlay .fc .tr{font-weight:700;font-size:13.5px;color:#eef1f6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-        #ranked-overlay .fc .po{margin-left:auto;color:#c8aa6e;font-weight:700;font-size:11.5px;font-variant-numeric:tabular-nums;flex:none}
-        #ranked-overlay .fc .l2{display:flex;align-items:center;gap:8px;margin-top:5px;font-size:11px;color:#8b97a9;font-variant-numeric:tabular-nums}
+        #ranked-overlay .fc .l1{display:flex;align-items:center;gap:8px}
+        #ranked-overlay .fc .fl{font-size:9px;font-weight:800;letter-spacing:.6px;color:#160f02;background:linear-gradient(180deg,#eccf88,#c8aa6e);border-radius:5px;padding:2px 6px;flex:none}
+        #ranked-overlay .fc .tr{font-weight:800;font-size:14px;color:#f3f6fb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.2px}
+        #ranked-overlay .fc .po{margin-left:auto;color:#8793a5;font-weight:700;font-size:11px;font-variant-numeric:tabular-nums;flex:none;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);border-radius:6px;padding:2px 7px}
+        #ranked-overlay .fc .l2{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:11px;color:#8793a5;font-variant-numeric:tabular-nums}
         #ranked-overlay .fc .l2 .mmr{color:#dbe2ee;font-weight:600}
-        #ranked-overlay .fc .l2 .mmr b{color:#e4c877;font-weight:800}
-        #ranked-overlay .fc .l2 .dot{color:#3a4454}
-        #ranked-overlay .fc .l2 .wr.good{color:#7fc47a;font-weight:700}
-        #ranked-overlay .fc .l2 .wr.bad{color:#d1706c;font-weight:700}
-        #ranked-overlay .fc .delta{margin-left:auto;flex:none;font-weight:800;font-size:11px;font-variant-numeric:tabular-nums;padding:2px 7px;border-radius:999px}
+        #ranked-overlay .fc .l2 .mmr b{color:#e8cf94;font-weight:800}
+        #ranked-overlay .fc .l2 .dot{color:#37404f}
+        #ranked-overlay .fc .l2 .wr.good{color:#78c86f;font-weight:800}
+        #ranked-overlay .fc .l2 .wr.bad{color:#d1706c;font-weight:800}
+        #ranked-overlay .fc .delta{margin-left:auto;flex:none;font-weight:800;font-size:11px;font-variant-numeric:tabular-nums;padding:2px 8px;border-radius:999px}
         #ranked-overlay .fc .delta.up{color:#9bd897;background:rgba(116,181,106,.15);border:1px solid rgba(116,181,106,.35)}
         #ranked-overlay .fc .delta.down{color:#e89a96;background:rgba(192,97,93,.15);border:1px solid rgba(192,97,93,.35)}
-        #ranked-overlay .fc .bar{margin-top:8px;height:5px;border-radius:999px;background:rgba(0,0,0,.35);overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,.45)}
-        #ranked-overlay .fc .bar > i{display:block;height:100%;background:linear-gradient(90deg,#b98f3e,#e4c877);border-radius:999px}
-        #ranked-overlay .seg{display:flex;gap:8px}
-        #ranked-overlay .seg button{flex:1;cursor:pointer;border:1px solid rgba(200,170,110,.3);background:linear-gradient(180deg,#16203a,#111a2e);color:#eef1f6;border-radius:7px;padding:10px 0;font-weight:700;font-size:12.5px;letter-spacing:.2px;transition:.14s}
-        #ranked-overlay .seg button:hover{background:linear-gradient(180deg,#1d2a49,#15203a);border-color:rgba(200,170,110,.6);box-shadow:0 0 0 1px rgba(200,170,110,.15),0 8px 18px -10px rgba(200,170,110,.45)}
-        #ranked-overlay .seg button[disabled]{opacity:.35;cursor:default;box-shadow:none}
+        #ranked-overlay .fc .bar{margin-top:9px;height:5px;border-radius:999px;background:rgba(0,0,0,.4);overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,.5)}
+        #ranked-overlay .fc .bar > i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#a07b38,#e8cf94);box-shadow:0 0 8px rgba(232,207,148,.5)}
+        #ranked-overlay .seg{display:flex;gap:9px}
+        #ranked-overlay .seg button{position:relative;flex:1;cursor:pointer;border:1px solid rgba(200,170,110,.35);background:linear-gradient(180deg,#19274a,#111d33);color:#f3f6fb;border-radius:10px;padding:11px 0;font-weight:800;font-size:12.5px;letter-spacing:.3px;transition:.15s}
+        #ranked-overlay .seg button:hover{color:#140e02;border-color:#e8cf94;background:linear-gradient(180deg,#f0d89a,#c8aa6e);box-shadow:0 10px 22px -10px rgba(200,170,110,.6),inset 0 1px 0 rgba(255,255,255,.3)}
+        #ranked-overlay .seg button[disabled]{opacity:.35;cursor:default;box-shadow:none;color:#f3f6fb;background:linear-gradient(180deg,#19274a,#111d33)}
         #ranked-overlay .seg button.off{opacity:.5}
-        #ranked-overlay .cancel{width:100%;margin-top:8px;cursor:pointer;border:1px solid rgba(192,97,93,.35);background:rgba(60,25,28,.3);color:#e0a3a0;border-radius:7px;padding:7px 0;font-weight:600;font-size:11.5px;display:none;transition:.14s}
+        #ranked-overlay .cancel{width:100%;margin-top:9px;cursor:pointer;border:1px solid rgba(192,97,93,.35);background:rgba(60,25,28,.3);color:#e0a3a0;border-radius:9px;padding:8px 0;font-weight:700;font-size:11.5px;display:none;transition:.14s}
         #ranked-overlay .cancel:hover{background:rgba(80,30,34,.45)}
         #ranked-overlay .cancel.show{display:block}
-        #ranked-overlay .status{margin-top:12px;font-size:12px;color:#b4bdca;min-height:16px;background:rgba(0,0,0,.25);border-radius:7px;padding:9px 11px;border:1px solid rgba(255,255,255,.05);border-left:2px solid rgba(200,170,110,.45)}
-        #ranked-overlay .online{display:none;align-items:center;gap:7px;margin-top:7px;font-size:11.5px;font-weight:600;color:#9fb0c0}
+        #ranked-overlay .status{margin-top:13px;font-size:12px;color:#c2cbd8;min-height:18px;background:rgba(0,0,0,.28);border-radius:9px;padding:10px 12px;border:1px solid rgba(255,255,255,.05);border-left:3px solid rgba(200,170,110,.55)}
+        #ranked-overlay .online{display:none;align-items:center;gap:8px;margin-top:9px;font-size:11.5px;font-weight:700;color:#9fb0c0}
         #ranked-overlay .rk-dot{width:7px;height:7px;border-radius:50%;background:#51c15a;box-shadow:0 0 0 0 rgba(81,193,90,.6);animation:rk-pulse 2s infinite}
         @keyframes rk-pulse{0%{box-shadow:0 0 0 0 rgba(81,193,90,.5)}70%{box-shadow:0 0 0 5px rgba(81,193,90,0)}100%{box-shadow:0 0 0 0 rgba(81,193,90,0)}}
-        #ranked-overlay .act-wrap{margin-top:8px;display:flex;gap:8px}
+        #ranked-overlay .act-wrap{margin-top:9px;display:flex;gap:9px}
         #ranked-overlay .act-wrap:empty{display:none}
-        #ranked-overlay .act{flex:1;cursor:pointer;border-radius:7px;padding:9px 0;font-weight:700;font-size:12px;border:1px solid;transition:.14s}
+        #ranked-overlay .act{flex:1;cursor:pointer;border-radius:9px;padding:9px 0;font-weight:800;font-size:12px;border:1px solid;transition:.14s}
         #ranked-overlay .act.claim{border-color:rgba(200,170,110,.5);background:rgba(200,170,110,.13);color:#ecd9ab}
         #ranked-overlay .act.claim:hover{background:rgba(200,170,110,.22)}
         #ranked-overlay .act.contest{border-color:rgba(120,160,200,.5);background:rgba(90,136,196,.15);color:#bcd3ef}
         #ranked-overlay .act.contest:hover{background:rgba(90,136,196,.26)}
         #ranked-overlay .act[disabled]{opacity:.45;cursor:default}
-        #ranked-overlay .opp-gone{margin-bottom:7px;font-size:11.5px;font-weight:700;color:#e8b2ae;background:rgba(192,97,93,.14);border:1px solid rgba(192,97,93,.34);border-radius:7px;padding:7px 9px;text-align:center}
-        #ranked-overlay .opp-gone.wait{color:#e8cfa0;background:rgba(200,170,110,.13);border-color:rgba(200,170,110,.34)}
+        #ranked-overlay .opp-gone{margin-bottom:8px;font-size:11.5px;font-weight:700;color:#e8b2ae;background:rgba(192,97,93,.14);border:1px solid rgba(192,97,93,.34);border-radius:9px;padding:8px 10px;text-align:center}
+        #ranked-overlay .opp-gone.wait{color:#e8cf94;background:rgba(200,170,110,.13);border-color:rgba(200,170,110,.34)}
         #ranked-overlay #rk-concede-wrap:empty{display:none}
-        #ranked-overlay .concede-btn{width:100%;margin-top:8px;cursor:pointer;border:1px solid rgba(192,97,93,.3);background:rgba(60,25,28,.22);color:#c99;border-radius:7px;padding:7px 0;font-weight:600;font-size:11px;transition:.14s}
+        #ranked-overlay .concede-btn{width:100%;margin-top:9px;cursor:pointer;border:1px solid rgba(192,97,93,.3);background:rgba(60,25,28,.22);color:#cc9b99;border-radius:9px;padding:8px 0;font-weight:700;font-size:11px;transition:.14s}
         #ranked-overlay .concede-btn:hover{background:rgba(80,30,34,.4);color:#e0a3a0}
-        #ranked-overlay .concede-confirm{margin-top:8px;display:flex;align-items:center;gap:6px;font-size:11.5px;color:#e0a3a0;background:rgba(60,25,28,.3);border:1px solid rgba(192,97,93,.4);border-radius:7px;padding:6px 8px}
+        #ranked-overlay .concede-confirm{margin-top:9px;display:flex;align-items:center;gap:7px;font-size:11.5px;color:#e0a3a0;background:rgba(60,25,28,.3);border:1px solid rgba(192,97,93,.4);border-radius:9px;padding:7px 9px}
         #ranked-overlay .concede-confirm span{flex:1}
-        #ranked-overlay .concede-confirm button{cursor:pointer;border:0;border-radius:5px;padding:4px 10px;font-weight:700;font-size:11px}
+        #ranked-overlay .concede-confirm button{cursor:pointer;border:0;border-radius:6px;padding:5px 11px;font-weight:800;font-size:11px}
         #ranked-overlay .concede-confirm .cc-yes{background:#c0615d;color:#fff}
         #ranked-overlay .concede-confirm .cc-no{background:rgba(255,255,255,.12);color:#cdd6e4}
         #ranked-overlay .upd-wrap:empty{display:none}
-        #ranked-overlay .upd{margin-bottom:11px;font-size:11.5px;color:#ecd9ab;background:rgba(200,170,110,.12);
-          border:1px solid rgba(200,170,110,.32);border-radius:7px;padding:8px 10px;display:flex;align-items:center;gap:6px}
-        #ranked-overlay .upd a{color:#e4c877;font-weight:800;text-decoration:none;margin-left:auto}
+        #ranked-overlay .upd{margin-bottom:12px;font-size:11.5px;color:#ecd9ab;background:rgba(200,170,110,.12);
+          border:1px solid rgba(200,170,110,.32);border-radius:9px;padding:9px 11px;display:flex;align-items:center;gap:7px}
+        #ranked-overlay .upd a{color:#e8cf94;font-weight:800;text-decoration:none;margin-left:auto}
         #ranked-overlay .upd a:hover{text-decoration:underline}
         #ranked-overlay .upd.warn{color:#e8b2ae;background:rgba(192,97,93,.12);border-color:rgba(192,97,93,.34)}
-        #ranked-overlay .foot{margin-top:11px;text-align:center}
-        #ranked-overlay .foot a{color:#7e6a3e;font-size:11px;text-decoration:none;font-weight:600;letter-spacing:.2px}
-        #ranked-overlay .foot a:hover{color:#c8aa6e}
+        #ranked-overlay .foot{margin-top:13px;text-align:center}
+        #ranked-overlay .foot a{color:#8a7647;font-size:11px;text-decoration:none;font-weight:700;letter-spacing:.3px;transition:.14s}
+        #ranked-overlay .foot a:hover{color:#e8cf94}
         #ranked-overlay.min .bd{display:none}
-        /* minimizado: só o símbolo + o botão (+). Esconde nome, versão e idiomas. */
+        /* minimizado: só o símbolo + o botão (–). Esconde nome, versão e idiomas. */
         #ranked-overlay.min{width:auto}
-        #ranked-overlay.min .hd{gap:7px;padding:8px 9px;border-bottom:0}
+        #ranked-overlay.min .hd{gap:8px;padding:9px 10px;border-bottom:0}
         #ranked-overlay.min .wm,
         #ranked-overlay.min .lang,
         #ranked-overlay.min .hd .cfg,
         #ranked-overlay.min .hd .sp{display:none}
-        #ranked-overlay .hd .cfg{cursor:pointer;color:#6b7686;font-size:14px;background:0;border:0;line-height:1;padding:2px 5px;border-radius:5px}
-        #ranked-overlay .hd .cfg:hover{color:#c8aa6e;background:rgba(255,255,255,.05)}
-        #ranked-overlay .settings{margin-top:11px;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:8px}
+        #ranked-overlay .settings{margin-top:12px;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:8px}
         #ranked-overlay .settings .st-title{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#8b7340;font-weight:800;margin:2px 4px 6px}
-        #ranked-overlay .st-row{display:flex;align-items:center;gap:8px;width:100%;cursor:pointer;background:0;border:0;color:#cdd6e4;font-size:12px;padding:6px;border-radius:6px}
+        #ranked-overlay .st-row{display:flex;align-items:center;gap:8px;width:100%;cursor:pointer;background:0;border:0;color:#cdd6e4;font-size:12px;padding:7px;border-radius:7px}
         #ranked-overlay .st-row:hover{background:rgba(255,255,255,.04)}
         #ranked-overlay .st-row span{flex:1;text-align:left}
         #ranked-overlay .st-row .sw{width:30px;height:16px;border-radius:999px;background:#2a3344;position:relative;flex:none;transition:.15s}
@@ -850,7 +854,7 @@ import * as D from "./detect";
         #ranked-overlay .st-row.on .sw::after{left:16px;background:#1a1300}
       </style>
       <div class="hd">
-        <div class="mk"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 1.6l9 5.2v10.4L12 22.4 3 17.2V6.8L12 1.6z" stroke="#c8aa6e" stroke-width="1.4" stroke-linejoin="round"/></svg></div>
+        <div class="mk"><svg width="19" height="19" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="rkmk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f0d89a"/><stop offset="1" stop-color="#b5873a"/></linearGradient></defs><path d="M12 1.6l9 5.2v10.4L12 22.4 3 17.2V6.8L12 1.6z" fill="url(#rkmk)" stroke="#f0d89a" stroke-width="1" stroke-linejoin="round"/></svg></div>
         <div class="wm"><div class="a">${t.brandTop}</div><div class="b">${t.brandBottom} <span class="ver">v${extVersion()}</span></div></div>
         <div class="sp"></div>
         <div class="lang">
