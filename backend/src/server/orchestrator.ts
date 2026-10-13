@@ -23,6 +23,7 @@ import { randomUUID } from "node:crypto";
 import { DEFAULT_PAIRING, findMatches, } from "../domain/pairing.js";
 import { createMatch, transition, } from "../domain/match.js";
 import { reconcile } from "../domain/reconcile.js";
+import { initScoreWatch, applyReport, seriesLeader } from "../domain/scoreWatch.js";
 import { PROVISIONAL_RD } from "./repository.js";
 import { applyRatedResult } from "./ratingService.js";
 export const DEFAULT_CONFIG = {
@@ -45,6 +46,8 @@ export class Orchestrator {
     matches = new Map();
     playerMatch = new Map();
     reports = new Map();
+    /** Placar semi-autoritativo por partida (corroboração dos dois clientes). */
+    scoreWatch = new Map();
     /** Confirmação manual do vencedor por partida: { host?, joiner?, round } (ids absolutos). */
     confirmations = new Map();
     /** Prazo p/ o oponente confirmar o vencedor. */
@@ -155,9 +158,23 @@ export class Orchestrator {
             return;
         this.ensureStarted(m, playerId);
         m = this.matches.get(matchId) ?? m;
+        // alimenta o placar semi-autoritativo (visão deste cliente); credita jogos
+        // só quando o OUTRO cliente corrobora o mesmo 8.
+        const w = this.scoreWatch.get(matchId) ?? initScoreWatch();
+        applyReport(w, this.sideOf(m, playerId), host, joiner);
+        this.scoreWatch.set(matchId, w);
         if (m.state !== "IN_GAME")
             return;
-        this.apply(m, { type: "GAME_SCORE", host, joiner });
+        // persiste o placar da SÉRIE corroborado (vitórias de jogo), não os pontos crus
+        this.apply(m, { type: "GAME_SCORE", host: w.gameWins.host, joiner: w.gameWins.joiner });
+    }
+    /** Vencedor da série corroborado pelos DOIS placares (ou null). */
+    authSeriesWinnerId(matchId, m) {
+        const w = this.scoreWatch.get(matchId);
+        if (!w)
+            return null;
+        const side = seriesLeader(w, m.format);
+        return side ? (side === "host" ? m.hostId : m.joinerId) : null;
     }
     async onReport(playerId, matchId, outcome) {
         const m = this.matches.get(matchId);
@@ -209,13 +226,23 @@ export class Orchestrator {
         }
         // ambos confirmaram
         this.confirmDeadlines.delete(matchId);
+        const authId = this.authSeriesWinnerId(matchId, m); // vencedor corroborado pelos 2 placares
         if (c.host === c.joiner) {
             // acordo → finaliza com o vencedor combinado
             this.confirmations.delete(matchId);
+            if (authId && authId !== c.host) // consenso humano contradiz o placar corroborado (raro) → registra
+                console.warn(`[orchestrator] match ${matchId}: confirmação (${c.host}) difere do placar corroborado (${authId})`);
             await this.finalizeConfirmed(m, c.host, "score");
             return;
         }
-        // divergência: re-pede a confirmação enquanto não estourar o limite de rodadas
+        // DIVERGÊNCIA. Preferência 1: o placar corroborado pelos DOIS clientes é a
+        // verdade mais confiável (um cliente adulterado sozinho não corrobora).
+        if (authId) {
+            this.confirmations.delete(matchId);
+            await this.finalizeConfirmed(m, authId, "score");
+            return;
+        }
+        // Sem corroboração: re-pede a confirmação enquanto não estourar o limite de rodadas
         if (c.round < (this.cfg.confirmMaxRounds ?? 2)) {
             const nextRound = c.round + 1;
             this.confirmations.set(matchId, { round: nextRound });
@@ -396,10 +423,12 @@ export class Orchestrator {
                 this.confirmations.delete(mid);
                 continue;
             }
+            // preferência: o placar corroborado pelos dois clientes; senão, vale quem confirmou
             const present = c.host != null ? c.host : c.joiner; // o lado que confirmou
             this.confirmations.delete(mid);
-            if (present != null)
-                await this.finalizeConfirmed(m, present, "score");
+            const winnerId = this.authSeriesWinnerId(mid, m) ?? present;
+            if (winnerId != null)
+                await this.finalizeConfirmed(m, winnerId, "score");
         }
     }
     /** Resolve a partida por W.O. e aplica um strike de grief ao faltante. */
@@ -557,6 +586,7 @@ export class Orchestrator {
         this.griefClaims.delete(matchId);
         this.confirmations.delete(matchId);
         this.confirmDeadlines.delete(matchId);
+        this.scoreWatch.delete(matchId);
     }
     graceExpired(m) {
         const grace = this.cfg.reconnectGraceMs;
