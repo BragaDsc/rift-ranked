@@ -1,5 +1,5 @@
 {
-  "version": "0.3.26",
-  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.26",
-  "notes": "Corrige desistência/saída: lê o resultado autoritativo do RiftAtlas (gameOutcome/leftAt) para encerrar a partida e definir vitória/derrota; backend resolve na hora se o oponente já saiu."
+  "version": "0.3.27",
+  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.27",
+  "notes": "Reconexão: quando o oponente cai e volta à partida, o backend tira a partida do estado de abandono e volta ao jogo; a janela de confirmação do vencedor abre já pré-marcada (não trava mais o cronômetro em 0), e um prazo garante a resolução mesmo se o oponente que voltou não confirmar."
 }

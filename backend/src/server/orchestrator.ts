@@ -80,6 +80,27 @@ export class Orchestrator {
                 displayName,
             });
         }
+        // Reconexão: se a partida caiu em ABANDON_GRACE porque este jogador
+        // desconectou, o retorno dele traz a partida de volta a IN_GAME e
+        // cancela o prazo de grace (walkover). Sem isso o backend "não entende
+        // que o jogador voltou" e podia encerrar a partida por abandono.
+        const matchId = this.playerMatch.get(playerId);
+        if (matchId) {
+            const m = this.matches.get(matchId);
+            if (m && m.state === "ABANDON_GRACE") {
+                const side = this.sideOf(m, playerId);
+                // só reconecta o lado que estava desconectado
+                if (m.disconnectedAt && m.disconnectedAt[side] != null) {
+                    this.apply(m, { type: "RECONNECT", side });
+                    // re-lê o estado atualizado (apply substitui o objeto no mapa)
+                    const nm = this.matches.get(matchId);
+                    const stillGone = nm && nm.disconnectedAt &&
+                        Object.keys(nm.disconnectedAt).length > 0;
+                    if (!stillGone)
+                        this.deadlines.delete(matchId);
+                }
+            }
+        }
     }
     onHeartbeat(playerId) {
         const p = this.presence.get(playerId);

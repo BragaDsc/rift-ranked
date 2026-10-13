@@ -374,9 +374,11 @@ import * as D from "./detect";
         setStatus(() => T().inGame); updateUI();
         break;
       }
-      // abre a janela de confirmação a pedido do servidor (reload / cliente não detectou o fim)
+      // abre a janela de confirmação a pedido do servidor (reload / cliente não detectou o fim).
+      // Se este cliente já sabe quem venceu (detecção ou reconexão), pré-marca o vencedor
+      // para o auto-envio funcionar ao zerar o cronômetro — senão o jogador escolhe.
       case "confirm_prompt":
-        if (state.match && !state.confirm) openConfirm(null); // sem vencedor pré-marcado → o jogador escolhe
+        if (state.match && !state.confirm) openConfirm(state.match.lastWinner || null);
         break;
       case "create_room": await doCreateRoom(msg.matchId, msg.format); break;
       case "join_room": await doJoinRoom(msg.roomCode); break;
@@ -557,17 +559,21 @@ import * as D from "./detect";
       const res = D.applyScores(m.det, gs.scores);
       if (res.countedGame && m.format === "bo3" && me) showSeries(m, me); // 1–0, 1–1, 2–1…
       const winner = D.seriesWinner(m.det, m.format);
+      if (winner && me) m.lastWinner = winner === me ? "me" : "opp"; // lembra p/ um confirm_prompt tardio
       if (!m.confirmShown && winner && me) {
         m.confirmShown = true;
-        openConfirm(winner === me ? "me" : "opp");
+        openConfirm(m.lastWinner);
       }
     }
 
     // fim autoritativo do RiftAtlas: desistência / saída / abandono (gameOutcome ou leftAt).
     // Encerra a partida com esse vencedor. (reason "score" já é tratado pelo placar acima.)
-    if (gs.outcome && gs.outcome.winnerId && gs.outcome.reason !== "score" && !m.confirmShown && me) {
-      m.confirmShown = true;
-      openConfirm(gs.outcome.winnerId === me ? "me" : "opp");
+    if (gs.outcome && gs.outcome.winnerId && gs.outcome.reason !== "score" && me) {
+      m.lastWinner = gs.outcome.winnerId === me ? "me" : "opp";
+      if (!m.confirmShown) {
+        m.confirmShown = true;
+        openConfirm(m.lastWinner);
+      }
     }
 
     // log opcional p/ depuração (silencioso por padrão; ligue com
