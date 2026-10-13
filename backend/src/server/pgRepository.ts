@@ -295,6 +295,53 @@ export class PgRepository {
          ON CONFLICT (match_id, player_id) DO NOTHING`, [matchId, format, playerId, info.legendCode ?? null, info.legendName ?? null, info.championCode ?? null, info.championName ?? null]);
         }
     }
+    /** Estatística por campeão (Legend) num formato: jogos, vitórias, winrate. */
+    async championStats(format, limit) {
+        const { rows } = await this.pool.query(`SELECT md.legend_code, max(md.legend_name) AS legend_name,
+              max(md.champion_code) AS champion_code,
+              count(*)::int AS games,
+              count(*) FILTER (WHERE m.winner_id = md.player_id)::int AS wins
+         FROM match_decks md
+         JOIN matches m ON m.id = md.match_id
+        WHERE md.format = $1 AND md.legend_code IS NOT NULL
+          AND m.state = 'RATED' AND m.winner_id IS NOT NULL
+          AND m.result_reason <> 'double_no_show'
+        GROUP BY md.legend_code
+        ORDER BY games DESC, wins DESC
+        LIMIT $2`, [format, limit]);
+        return rows.map((r) => ({
+            legendCode: r.legend_code,
+            legendName: r.legend_name,
+            championCode: r.champion_code,
+            games: r.games,
+            wins: r.wins,
+            losses: r.games - r.wins,
+            winrate: r.games ? Math.round((r.wins / r.games) * 100) : 0,
+        }));
+    }
+    /** Campeões (Legends) que um jogador usou num formato, com V/D. */
+    async playerChampions(playerId, format) {
+        const { rows } = await this.pool.query(`SELECT md.legend_code, max(md.legend_name) AS legend_name,
+              max(md.champion_code) AS champion_code,
+              count(*)::int AS games,
+              count(*) FILTER (WHERE m.winner_id = md.player_id)::int AS wins
+         FROM match_decks md
+         JOIN matches m ON m.id = md.match_id
+        WHERE md.player_id = $1 AND md.format = $2 AND md.legend_code IS NOT NULL
+          AND m.state = 'RATED' AND m.winner_id IS NOT NULL
+          AND m.result_reason <> 'double_no_show'
+        GROUP BY md.legend_code
+        ORDER BY games DESC`, [playerId, format]);
+        return rows.map((r) => ({
+            legendCode: r.legend_code,
+            legendName: r.legend_name,
+            championCode: r.champion_code,
+            games: r.games,
+            wins: r.wins,
+            losses: r.games - r.wins,
+            winrate: r.games ? Math.round((r.wins / r.games) * 100) : 0,
+        }));
+    }
     rowToMatch(r) {
         return {
             id: r.id,

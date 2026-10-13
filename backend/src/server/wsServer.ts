@@ -45,6 +45,7 @@ function loadPage(name, fallback) {
 }
 const LEADERBOARD_HTML = loadPage("leaderboard.html", "<!doctype html><meta charset=utf-8><title>Ranked</title><p>Leaderboard indisponível.</p>");
 const PROFILE_HTML = loadPage("player.html", "<!doctype html><meta charset=utf-8><title>Perfil</title><p>Perfil indisponível.</p>");
+const CHAMPIONS_HTML = loadPage("champions.html", "<!doctype html><meta charset=utf-8><title>Campeões</title><p>Indisponível.</p>");
 const EXT_VERSION_JSON = loadPage("ext/version.json", '{"version":"0.0.0"}');
 let EXT_ZIP = null;
 try {
@@ -81,6 +82,21 @@ export function startServer(opts) {
                 res.end(PROFILE_HTML);
                 return;
             }
+            // página de campeões (estatísticas por Legend)
+            if (req.method === "GET" &&
+                (url.pathname === "/ranked/campeoes" || url.pathname === "/ranked/champions")) {
+                res.setHeader("Content-Type", "text/html; charset=utf-8");
+                res.end(CHAMPIONS_HTML);
+                return;
+            }
+            if (req.method === "GET" && url.pathname === "/ranked/api/champions") {
+                const format = (url.searchParams.get("format") ?? "bo1");
+                const limit = Math.min(Number(url.searchParams.get("limit") ?? 200), 500);
+                const champions = (await repo.championStats?.(format, limit)) ?? [];
+                const totalGames = champions.reduce((n, c) => n + c.games, 0);
+                res.end(JSON.stringify({ format, totalGames, champions }));
+                return;
+            }
             if (req.method === "GET" && url.pathname === "/ranked/api/player") {
                 const id = url.searchParams.get("id");
                 const format = (url.searchParams.get("format") ?? "bo1");
@@ -111,12 +127,14 @@ export function startServer(opts) {
                     };
                 };
                 const reputation = (await repo.getLikeStats?.(id)) ?? { likes: 0, dislikes: 0, net: 0 };
+                const champions = (await repo.playerChampions?.(id, format)) ?? [];
                 res.end(JSON.stringify({
                     player: { id: player.id, displayName: player.displayName },
                     format,
                     bo1: await summary("bo1"),
                     bo3: await summary("bo3"),
                     reputation,
+                    champions,
                     history: await repo.ratingHistory(id, format, 200),
                 }));
                 return;

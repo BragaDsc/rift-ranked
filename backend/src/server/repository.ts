@@ -33,6 +33,20 @@ export interface Repository {
   getLikeStats?(playerId: PlayerId): Promise<{ likes: number; dislikes: number; net: number }>;
   /** Salva o Legend/champion/deck de um jogador numa partida. */
   saveMatchDeck?(matchId: string, format: Format, playerId: PlayerId, info: { legendCode: string | null; legendName: string | null; championCode: string | null; championName: string | null; deck?: any }, selfReported: boolean): Promise<void>;
+  /** Estatística por campeão (Legend) num formato. */
+  championStats?(format: Format, limit: number): Promise<ChampionStat[]>;
+  /** Campeões usados por um jogador num formato. */
+  playerChampions?(playerId: PlayerId, format: Format): Promise<ChampionStat[]>;
+}
+
+export interface ChampionStat {
+  legendCode: string;
+  legendName: string;
+  championCode: string | null;
+  games: number;
+  wins: number;
+  losses: number;
+  winrate: number;
 }
 
 /**

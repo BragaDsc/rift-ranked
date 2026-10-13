@@ -31,6 +31,12 @@
     .pname { font-size: 22px; font-weight: 800; letter-spacing: .3px; }
     .prep { font-size: 12px; color: #8b94a3; margin-top: 4px; font-weight: 600; font-variant-numeric: tabular-nums; }
     .prep .up { color: #7fc47a; } .prep .dn { color: #d1706c; }
+    .champs { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
+    .ch { text-align: center; }
+    .ch-art { aspect-ratio: 3/4; border-radius: 9px; background: #0b1220 center/cover no-repeat; border: 1px solid rgba(200,170,110,.18); }
+    .ch-n { font-size: 12.5px; font-weight: 700; margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ch-s { font-size: 11px; color: #8b94a3; font-variant-numeric: tabular-nums; }
+    .ch-s .good { color: #7fc47a; } .ch-s .bad { color: #d1706c; }
     .psub { color: var(--muted); font-size: 12.5px; margin-top: 3px; letter-spacing: .3px; }
     .fmts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
     .fcard { background: var(--bg2); border: 1px solid var(--line2); border-radius: 8px; padding: 14px 16px; cursor: pointer; transition: .12s; }
@@ -246,12 +252,25 @@
       const repHtml = (rep.likes || rep.dislikes)
         ? `<div class="prep"><span class="up">👍 ${rep.likes}</span> · <span class="dn">👎 ${rep.dislikes}</span></div>`
         : "";
+      const cardImg = (code) => code ? `https://assets.riftatlas-workers.com/cdn-cgi/image/width=320,quality=75,format=auto,fit=scale-down/riftbound/cards/small-v2/${encodeURIComponent(code)}.webp` : "";
+      const champName = (ln) => (ln || "").split(",")[0].trim() || "?";
+      const champs = data.champions || [];
+      const champHtml = champs.length ? `
+        <div class="panel"><h2>Campeões (${(fmt === "bo3" ? t().fmt3 : t().fmt1)})</h2>
+          <div class="champs">${champs.map((c) => {
+            const wr = c.winrate >= 50 ? "good" : "bad";
+            return `<div class="ch"><div class="ch-art" style="background-image:url('${cardImg(c.legendCode || c.championCode)}')"></div>
+              <div class="ch-n">${esc(champName(c.legendName))}</div>
+              <div class="ch-s"><b class="${wr}">${c.winrate}%</b> · ${c.wins}V ${c.losses}D</div></div>`;
+          }).join("")}</div>
+        </div>` : "";
       app.innerHTML = `
         <div class="phead">
           <div class="pav" style="background:${avColor(name)}">${esc((name[0] || "?").toUpperCase())}</div>
           <div><div class="pname">${esc(name)}${idTag}</div><div class="psub">${t().sub}</div>${repHtml}</div>
         </div>
         <div class="fmts">${fmtCard(t().fmt1, data.bo1, "bo1")}${fmtCard(t().fmt3, data.bo3, "bo3")}</div>
+        ${champHtml}
         <div class="panel">
           <h2>${t().chartTitle(fmt === "bo3" ? t().fmt3 : t().fmt1)}</h2>
           <div class="cap">${t().matches(data.history.length)}</div>
