@@ -22,6 +22,17 @@
   const post = (payload) =>
     window.postMessage({ [TAG]: true, dir: "fromPage", n: NONCE, ...payload }, "*");
 
+  // Captura de investigação (atrás da flag ranked_debug): guarda os últimos frames
+  // "cheios" do WS da partida p/ descobrir onde ficam deck/Legend. Off por padrão.
+  const DEBUG = (() => { try { return localStorage.getItem("ranked_debug") === "1"; } catch { return false; } })();
+  const CAP_NOISE = /"type":"(presence_event|presence_update|ping|pong|rewind_confirmation_state)"/;
+  const capBuf: { t: number; m: string }[] = [];
+  function capture(data: any) {
+    if (!DEBUG || typeof data !== "string" || CAP_NOISE.test(data)) return;
+    capBuf.push({ t: Date.now(), m: data.slice(0, 60000) });
+    if (capBuf.length > 150) capBuf.splice(0, capBuf.length - 150);
+  }
+
   // ---------------------- 1) Intercepta o WebSocket ----------------------
   const OrigWS = window.WebSocket;
   function PatchedWS(url, protocols) {
@@ -37,6 +48,7 @@
           roomCode: parsed.searchParams.get("roomCode"),
         });
         ws.addEventListener("message", (ev) => handleFrame(ev.data));
+        if (DEBUG) ws.addEventListener("message", (ev) => capture(ev.data));
       }
     } catch {
       /* ignora */
@@ -187,6 +199,8 @@
       } catch {
         post({ kind: "token", reqId: d.reqId, token: null });
       }
+    } else if (d.kind === "getCapture") {
+      post({ kind: "capture", reqId: d.reqId, frames: capBuf });
     }
   });
 })();

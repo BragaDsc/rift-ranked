@@ -255,6 +255,7 @@ import * as D from "./detect";
       case "match_ws": if (d.plrId) state.plrId = d.plrId; break;
       case "game_frame": onGameFrame(d.state); break;
       case "token": { const w = tokenWaiters.get(d.reqId); if (w) { tokenWaiters.delete(d.reqId); w(d.token); } break; }
+      case "capture": { const w = tokenWaiters.get(d.reqId); if (w) { tokenWaiters.delete(d.reqId); w(d.frames); } break; }
     }
   });
   function toPage(p) { window.postMessage({ [TAG]: true, dir: "toPage", n: bridgeNonce, ...p }, "*"); }
@@ -265,6 +266,21 @@ import * as D from "./detect";
       toPage({ kind: "getToken", reqId });
       setTimeout(() => { if (tokenWaiters.has(reqId)) { tokenWaiters.delete(reqId); resolve(null); } }, 5000);
     });
+  }
+  // investigação (debug): pega os frames capturados pelo inpage e copia pra área de transferência
+  function requestCapture(): Promise<any[]> {
+    return new Promise((resolve) => {
+      const reqId = Math.random().toString(36).slice(2);
+      tokenWaiters.set(reqId, resolve as any);
+      toPage({ kind: "getCapture", reqId });
+      setTimeout(() => { if (tokenWaiters.has(reqId)) { tokenWaiters.delete(reqId); resolve([]); } }, 5000);
+    });
+  }
+  async function copyCapture(btn?: HTMLElement) {
+    const frames = await requestCapture();
+    const json = JSON.stringify(frames);
+    try { await navigator.clipboard.writeText(json); if (btn) btn.textContent = `copiado ${frames.length} ✓`; }
+    catch { if (btn) btn.textContent = "falhou — veja o console"; console.log("[ranked] captura:", json); }
   }
 
   // -------------------- conexão com o backend --------------------
@@ -783,6 +799,7 @@ import * as D from "./detect";
           <button class="st-row" data-snd="win"><span>${t.sndWin}</span><i class="sw"></i></button>
           <button class="st-row" data-snd="loss"><span>${t.sndLoss}</span><i class="sw"></i></button>
         </div>
+        ${DEBUG ? `<button id="rk-cap" style="width:100%;margin-top:8px;cursor:pointer;border:1px solid rgba(120,160,200,.4);background:rgba(90,136,196,.12);color:#bcd3ef;border-radius:7px;padding:8px 0;font-weight:600;font-size:11.5px">⧉ Copiar captura (debug)</button>` : ""}
         <div class="foot"><a href="${LADDER_URL}" target="_blank" rel="noopener">${t.ladder}</a></div>
       </div>
     `;
@@ -833,6 +850,7 @@ import * as D from "./detect";
   window.addEventListener("resize", () => { if (ui && ui.style.left) clampPos(ui); });
 
   function wireUI(root) {
+    { const cap = root.querySelector("#rk-cap"); if (cap) cap.addEventListener("click", () => copyCapture(cap)); }
     root.querySelectorAll(".seg button").forEach((b) =>
       b.addEventListener("click", () => {
         ensureAudio(); // destrava o som (gesto do usuário)
