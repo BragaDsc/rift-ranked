@@ -68,18 +68,46 @@
     "authoritative_patch_commit",
   ]);
   // Estado acumulado da partida (o protocolo manda deltas, não o estado inteiro).
-  const acc = { phase: null, scores: {}, winnerPlayerId: null, viewerPlayerId: null };
+  const acc: any = { phase: null, scores: {}, winnerPlayerId: null, viewerPlayerId: null, disconnected: [] };
   let lastSig = "";
   // Cada partida é uma sala nova = uma WS nova. Zera o estado herdado do jogo
   // anterior (placar/fase/vencedor) — senão um "8" obsoleto que sobrou em memória
   // dispararia uma vitória falsa logo no 1º frame da próxima partida. O snapshot
   // autoritativo que chega na conexão repopula o placar real.
+  let decksSent = false; // já reportamos os decks desta partida?
   function resetAcc() {
     acc.phase = null;
     acc.scores = {};
     acc.winnerPlayerId = null;
     acc.viewerPlayerId = null;
+    acc.disconnected = [];
     lastSig = "";
+    decksSent = false;
+  }
+
+  // Extrai Legend/champion de cada jogador (públicos — ficam em jogo desde o início)
+  // e, do próprio jogador, o deck completo (deck.sections). Posta uma vez por partida.
+  function maybeSendDecks(snapshot: any) {
+    if (decksSent || !snapshot || !Array.isArray(snapshot.players)) return;
+    const players = snapshot.players.map((p: any) => {
+      const b = p.board || {};
+      const leg = (b.legend || [])[0] || {};
+      const champ = (b.champion || [])[0] || {};
+      return {
+        id: p.id,
+        name: p.name || null,
+        legendCode: leg.cardCode || null,
+        legendName: leg.name || null,
+        championCode: champ.cardCode || null,
+        championName: champ.name || null,
+        // deck completo só existe para o próprio jogador (oponente é oculto)
+        deck: p.deck && p.deck.sections ? p.deck.sections : null,
+      };
+    });
+    // só vale quando os Legends já estão em jogo
+    if (!players.some((p: any) => p.legendCode)) return;
+    decksSent = true;
+    post({ kind: "decks", players, viewerPlayerId: acc.viewerPlayerId });
   }
 
   function handleFrame(data) {
@@ -96,7 +124,7 @@
     if (!RELEVANT_TYPES.has(obj.type)) return;
     applyToAcc(obj);
     // só encaminha quando algo relevante mudou
-    const sig = acc.phase + "|" + JSON.stringify(acc.scores) + "|" + (acc.winnerPlayerId || "");
+    const sig = acc.phase + "|" + JSON.stringify(acc.scores) + "|" + (acc.winnerPlayerId || "") + "|" + acc.disconnected.join(",");
     if (sig === lastSig) return;
     lastSig = sig;
     post({
@@ -106,6 +134,7 @@
         scores: { ...acc.scores },
         winnerPlayerId: acc.winnerPlayerId,
         viewerPlayerId: acc.viewerPlayerId,
+        disconnected: [...acc.disconnected],
       },
     });
   }
@@ -139,13 +168,19 @@
       const d = obj.sessionDoc;
       setPhase(d.phase);
       if (d.viewer && d.viewer.playerId) acc.viewerPlayerId = d.viewer.playerId;
+      if (d.disconnectedAtByPlayerId) acc.disconnected = Object.keys(d.disconnectedAtByPlayerId);
       scanWinner(d);
     } else if (obj.type === "authoritative_snapshot" && obj.snapshot) {
       const s = obj.snapshot;
       setPhase(s.phase);
       if (Array.isArray(s.players))
-        for (const p of s.players)
-          if (p && p.id && typeof p.score === "number") acc.scores[p.id] = p.score;
+        for (const p of s.players) {
+          // placar de conquista fica em board.score (snapshot) — patches atualizam depois
+          const sc = typeof p?.score === "number" ? p.score : (typeof p?.board?.score === "number" ? p.board.score : null);
+          if (p && p.id && sc !== null) acc.scores[p.id] = sc;
+        }
+      if (s.disconnectedAtByPlayerId) acc.disconnected = Object.keys(s.disconnectedAtByPlayerId);
+      maybeSendDecks(s); // captura Legend/champion/deck (1x por partida)
       scanWinner(s);
     } else if (obj.type === "authoritative_patch_commit" && obj.patch) {
       for (const op of obj.patch.operations || []) {

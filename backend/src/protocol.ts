@@ -17,7 +17,17 @@ export type ClientMessage =
   | { type: "report_grief"; matchId: string }
   | { type: "contest_grief"; matchId: string }
   /** Confirmação manual do vencedor ao fim da partida (+ avaliação do oponente). */
-  | { type: "confirm_result"; matchId: string; winner: "me" | "opp"; rate?: "like" | "dislike" | null };
+  | { type: "confirm_result"; matchId: string; winner: "me" | "opp"; rate?: "like" | "dislike" | null }
+  /** Reporta o Legend/champion/deck capturados (me = este jogador; opp = o outro). */
+  | { type: "deck_report"; matchId: string; me: DeckInfo; opp: DeckInfo | null };
+
+export interface DeckInfo {
+  legendCode: string | null;
+  legendName: string | null;
+  championCode: string | null;
+  championName: string | null;
+  deck?: any;
+}
 
 export interface RatingView {
   format: Format;

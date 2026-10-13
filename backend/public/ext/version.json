@@ -1,5 +1,5 @@
 {
-  "version": "0.3.23",
-  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.23",
-  "notes": "Captura de investigação focada (snapshot inicial + frames com legend/deck/champion), atrás da flag ranked_debug."
+  "version": "0.3.24",
+  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.24",
+  "notes": "Captura de deck/Legend (estatísticas por campeão), botão Desistir com confirmação, e aviso quando o oponente cai/sai da partida (com Reivindicar vitória)."
 }

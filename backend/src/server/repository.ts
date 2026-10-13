@@ -31,6 +31,8 @@ export interface Repository {
   setLike?(fromId: PlayerId, toId: PlayerId, value: number, matchId?: string): Promise<void>;
   /** Reputação recebida: likes, dislikes e saldo. */
   getLikeStats?(playerId: PlayerId): Promise<{ likes: number; dislikes: number; net: number }>;
+  /** Salva o Legend/champion/deck de um jogador numa partida. */
+  saveMatchDeck?(matchId: string, format: Format, playerId: PlayerId, info: { legendCode: string | null; legendName: string | null; championCode: string | null; championName: string | null; deck?: any }, selfReported: boolean): Promise<void>;
 }
 
 /**

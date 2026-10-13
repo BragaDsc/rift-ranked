@@ -92,6 +92,8 @@ import * as D from "./detect";
       waitingOpp: "Aguardando o oponente confirmar…",
       disagreeNote: "Vocês discordaram sobre o vencedor. Confirmem novamente.",
       selectorWarn: "A interface do RiftAtlas pode ter mudado — talvez seja preciso atualizar a extensão.",
+      concede: "Desistir", concedeConfirm: "Desistir mesmo?", yes: "Sim", no: "Não",
+      oppLeft: "Oponente saiu/desconectou da partida",
       authFail: (m) => "Falha na autenticação: " + m,
       queued: (f) => `Na fila (${f})…`, dequeued: "Fora da fila.",
       foundHost: (n, r) => `Partida encontrada vs ${n} (${r}) — você hospeda`,
@@ -127,6 +129,8 @@ import * as D from "./detect";
       waitingOpp: "Waiting for your opponent to confirm…",
       disagreeNote: "You disagreed on the winner. Please confirm again.",
       selectorWarn: "RiftAtlas's UI may have changed — the extension might need an update.",
+      concede: "Concede", concedeConfirm: "Really concede?", yes: "Yes", no: "No",
+      oppLeft: "Opponent left/disconnected",
       authFail: (m) => "Authentication failed: " + m,
       queued: (f) => `In queue (${f})…`, dequeued: "Left the queue.",
       foundHost: (n, r) => `Match found vs ${n} (${r}) — you host`,
@@ -162,6 +166,8 @@ import * as D from "./detect";
       waitingOpp: "等待对手确认…",
       disagreeNote: "你们对胜者有分歧，请再次确认。",
       selectorWarn: "RiftAtlas 界面可能已变化 — 扩展可能需要更新。",
+      concede: "认输", concedeConfirm: "确定认输？", yes: "是", no: "否",
+      oppLeft: "对手已离开/掉线",
       authFail: (m) => "认证失败：" + m,
       queued: (f) => `匹配中（${f}）…`, dequeued: "已离开队列。",
       foundHost: (n, r) => `匹配成功 vs ${n}（${r}）— 由你创建房间`,
@@ -234,6 +240,8 @@ import * as D from "./detect";
     lastResult: null,   // { format, delta, youWon } — chip de +/- MMR estilo LoL
     confirm: null,      // { winner:"me"|"opp", rate:null|"like"|"dislike", waiting, round, note } — janela de confirmação
     selectorWarn: false, // UI do RiftAtlas mudou (âncora essencial sumiu) — mostra aviso
+    oppGone: false,     // oponente desconectou/saiu da partida (sinal do RiftAtlas)
+    concedeArm: false,  // botão desistir "armado" (aguardando confirmação)
     statusKey: () => T().connecting,
   };
   function setStatus(fn) { state.statusKey = typeof fn === "function" ? fn : () => fn; updateUI(); }
@@ -254,6 +262,7 @@ import * as D from "./detect";
       case "identity": state.identity = d.user; maybeConnect(); updateUI(); break;
       case "match_ws": if (d.plrId) state.plrId = d.plrId; break;
       case "game_frame": onGameFrame(d.state); break;
+      case "decks": onDecks(d); break;
       case "token": { const w = tokenWaiters.get(d.reqId); if (w) { tokenWaiters.delete(d.reqId); w(d.token); } break; }
       case "capture": { const w = tokenWaiters.get(d.reqId); if (w) { tokenWaiters.delete(d.reqId); w(d.frames); } break; }
     }
@@ -344,7 +353,7 @@ import * as D from "./detect";
       case "queued": { const f = msg.format; state.queued = f; setStatus(() => T().queued(fmtShort(f))); break; }
       case "dequeued": state.queued = null; setStatus(() => T().dequeued); break;
       case "match_found":
-        state.queued = null; state.lastResult = null;
+        state.queued = null; state.lastResult = null; state.oppGone = false; state.concedeArm = false;
         closeConfirm(); // limpa qualquer janela de confirmação pendente de uma partida anterior
         state.match = { matchId: msg.matchId, format: msg.format, side: msg.side, startedSent: false, confirmShown: false, oppName: msg.opponent?.displayName || "Oponente" };
         { const o = msg.opponent; setStatus(() => (msg.side === "host" ? T().foundHost : T().foundGuest)(o.displayName, Math.round(o.rating))); }
@@ -522,6 +531,10 @@ import * as D from "./detect";
       setStatus(() => T().inGame); // feedback visível no overlay
     }
 
+    // queda/saída do oponente (sinal do RiftAtlas: disconnectedAtByPlayerId)
+    const oppGone = Array.isArray(gs.disconnected) && gs.disconnected.some((id) => id && id !== me);
+    if (oppGone !== state.oppGone) { state.oppGone = oppGone; updateUI(); }
+
     // placar -> informa o backend (ordenado host/joiner)
     if (gs.scores && me && m.side) {
       const mine = gs.scores[me] ?? 0;
@@ -553,6 +566,26 @@ import * as D from "./detect";
     // log opcional p/ depuração (silencioso por padrão; ligue com
     // localStorage.setItem("ranked_debug","1") no console da aba do RiftAtlas).
     if (DEBUG) { try { console.debug("[ranked] frame", { phase: gs.phase, me, scores: gs.scores, det: m.det, match: m.matchId }); } catch {} }
+  }
+
+  // Recebe os decks capturados pelo inpage e reporta ao backend (uma vez por partida).
+  // "me" = este jogador (identificado pelo plrId desta partida); "opp" = o outro.
+  function onDecks(d) {
+    const m = state.match; if (!m || m.decksReported) return;
+    const players = d.players || [];
+    if (!players.length) return;
+    const meId = state.plrId || d.viewerPlayerId || (players.find((p) => p.deck) || {}).id;
+    const meP = players.find((p) => p.id === meId) || players.find((p) => p.deck) || players[0];
+    const oppP = players.find((p) => p !== meP) || null;
+    if (!meP || !meP.legendCode) return; // sem Legend ainda → espera outro snapshot
+    m.decksReported = true;
+    const pick = (p) => p ? { legendCode: p.legendCode, legendName: p.legendName, championCode: p.championCode, championName: p.championName } : null;
+    send({
+      type: "deck_report",
+      matchId: m.matchId,
+      me: { ...pick(meP), deck: meP.deck || null },
+      opp: pick(oppP),
+    });
   }
 
   // -------------------- janela de confirmação do vencedor --------------------
@@ -739,6 +772,16 @@ import * as D from "./detect";
         #ranked-overlay .act.claim:hover{background:rgba(200,170,110,.22)}
         #ranked-overlay .act.contest{border-color:rgba(120,160,200,.5);background:rgba(90,136,196,.15);color:#bcd3ef}
         #ranked-overlay .act.contest:hover{background:rgba(90,136,196,.26)}
+        #ranked-overlay .act[disabled]{opacity:.45;cursor:default}
+        #ranked-overlay .opp-gone{margin-bottom:7px;font-size:11.5px;font-weight:700;color:#e8b2ae;background:rgba(192,97,93,.14);border:1px solid rgba(192,97,93,.34);border-radius:7px;padding:7px 9px;text-align:center}
+        #ranked-overlay #rk-concede-wrap:empty{display:none}
+        #ranked-overlay .concede-btn{width:100%;margin-top:8px;cursor:pointer;border:1px solid rgba(192,97,93,.3);background:rgba(60,25,28,.22);color:#c99;border-radius:7px;padding:7px 0;font-weight:600;font-size:11px;transition:.14s}
+        #ranked-overlay .concede-btn:hover{background:rgba(80,30,34,.4);color:#e0a3a0}
+        #ranked-overlay .concede-confirm{margin-top:8px;display:flex;align-items:center;gap:6px;font-size:11.5px;color:#e0a3a0;background:rgba(60,25,28,.3);border:1px solid rgba(192,97,93,.4);border-radius:7px;padding:6px 8px}
+        #ranked-overlay .concede-confirm span{flex:1}
+        #ranked-overlay .concede-confirm button{cursor:pointer;border:0;border-radius:5px;padding:4px 10px;font-weight:700;font-size:11px}
+        #ranked-overlay .concede-confirm .cc-yes{background:#c0615d;color:#fff}
+        #ranked-overlay .concede-confirm .cc-no{background:rgba(255,255,255,.12);color:#cdd6e4}
         #ranked-overlay .upd-wrap:empty{display:none}
         #ranked-overlay .upd{margin-bottom:11px;font-size:11.5px;color:#ecd9ab;background:rgba(200,170,110,.12);
           border:1px solid rgba(200,170,110,.32);border-radius:7px;padding:8px 10px;display:flex;align-items:center;gap:6px}
@@ -793,6 +836,7 @@ import * as D from "./detect";
         <button class="cancel" id="rk-cancel">${t.leave}</button>
         <div class="status" id="rk-status">${t.connecting}</div>
         <div class="act-wrap" id="rk-action"></div>
+        <div id="rk-concede-wrap"></div>
         <div class="settings" id="rk-settings" style="display:none">
           <div class="st-title">${t.sounds}</div>
           <button class="st-row" data-snd="match"><span>${t.sndMatch}</span><i class="sw"></i></button>
@@ -869,6 +913,16 @@ import * as D from "./detect";
       const el = e.target;
       if (!el || !el.classList) return;
       if (el.classList.contains("contest") && state.griefWarning) send({ type: "contest_grief", matchId: state.griefWarning.matchId });
+      // reivindicar vitória (oponente saiu/desconectou) → W.O. após a janela de contestação
+      else if (el.classList.contains("claim") && state.match) { send({ type: "report_grief", matchId: state.match.matchId }); el.setAttribute("disabled", "true"); }
+      // desistir (com confirmação em 2 passos)
+      else if (el.classList.contains("concede-btn")) { state.concedeArm = true; updateUI(); }
+      else if (el.classList.contains("cc-no")) { state.concedeArm = false; updateUI(); }
+      else if (el.classList.contains("cc-yes") && state.match) {
+        state.concedeArm = false;
+        send({ type: "report", matchId: state.match.matchId, outcome: "conceded" });
+        setStatus(() => T().loss);
+      }
     });
     const hd = root.querySelector(".hd");
     if (hd) attachDragHandle(root, hd);
@@ -951,9 +1005,18 @@ import * as D from "./detect";
     ui.querySelector("#rk-cancel").classList.toggle("show", !!state.queued && !state.match);
     // botões de ação em partida
     const act = ui.querySelector("#rk-action");
-    // "Reivindicar vitória" removido: o vencedor é detectado automaticamente.
     if (state.griefWarning) act.innerHTML = `<button class="act contest">${T().contest}</button>`;
+    else if (state.oppGone && state.match) act.innerHTML = `<div class="opp-gone">⚠ ${T().oppLeft}</div><button class="act claim">${T().claimWin}</button>`;
     else act.innerHTML = "";
+    // botão "Desistir" (com confirmação) durante a partida
+    const cw = ui.querySelector("#rk-concede-wrap");
+    if (cw) {
+      if (state.match && !state.confirm) {
+        cw.innerHTML = state.concedeArm
+          ? `<div class="concede-confirm"><span>${T().concedeConfirm}</span><button class="cc-yes">${T().yes}</button><button class="cc-no">${T().no}</button></div>`
+          : `<button class="concede-btn">${T().concede}</button>`;
+      } else { cw.innerHTML = ""; state.concedeArm = false; }
+    }
     // banners: atualização disponível + aviso de seletor (UI do RiftAtlas mudou)
     const upd = ui.querySelector("#rk-update");
     let updHtml = "";

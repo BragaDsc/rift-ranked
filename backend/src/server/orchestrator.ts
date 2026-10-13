@@ -334,6 +334,25 @@ export class Orchestrator {
                 this.send(playerId, { type: "confirm_prompt", matchId });
         }
     }
+    /**
+     * Reporta o Legend/champion/deck. `me` é deste jogador (autoritativo); `opp` é o
+     * que ele enxergou do oponente (Legends são públicos) — só preenche se faltar.
+     */
+    async onDeckReport(playerId, msg) {
+        const m = this.matches.get(msg.matchId);
+        if (!m || !this.isParticipant(m, playerId) || !this.repo.saveMatchDeck)
+            return;
+        const oppId = playerId === m.hostId ? m.joinerId : m.hostId;
+        try {
+            if (msg.me && msg.me.legendCode)
+                await this.repo.saveMatchDeck(m.id, m.format, playerId, msg.me, true);
+            if (msg.opp && msg.opp.legendCode)
+                await this.repo.saveMatchDeck(m.id, m.format, oppId, msg.opp, false);
+        }
+        catch (e) {
+            console.error("[orchestrator] saveMatchDeck falhou:", e);
+        }
+    }
     /** Jogador presente reivindica vitória (oponente travando / não passa o turno). */
     onReportGrief(playerId, matchId) {
         let m = this.matches.get(matchId);

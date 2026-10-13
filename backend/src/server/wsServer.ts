@@ -345,6 +345,8 @@ async function route(orch, playerId, msg) {
             return orch.onReport(playerId, msg.matchId, msg.outcome);
         case "confirm_result":
             return orch.onConfirmResult(playerId, msg.matchId, msg.winner, msg.rate);
+        case "deck_report":
+            return orch.onDeckReport(playerId, msg);
         case "report_grief":
             return orch.onReportGrief(playerId, msg.matchId);
         case "contest_grief":

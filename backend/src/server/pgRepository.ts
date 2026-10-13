@@ -274,6 +274,27 @@ export class PgRepository {
             return { likes: 0, dislikes: 0, net: 0 };
         }
     }
+    /** Salva o Legend/champion/deck de um jogador numa partida. selfReported=true
+     *  (reporte do próprio) é autoritativo; o reporte do oponente só preenche se faltar. */
+    async saveMatchDeck(matchId, format, playerId, info, selfReported) {
+        const deck = info.deck ? JSON.stringify(info.deck) : null;
+        if (selfReported) {
+            await this.pool.query(`INSERT INTO match_decks
+           (match_id, format, player_id, legend_code, legend_name, champion_code, champion_name, deck, self_reported)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,true)
+         ON CONFLICT (match_id, player_id) DO UPDATE SET
+           format=EXCLUDED.format, legend_code=EXCLUDED.legend_code, legend_name=EXCLUDED.legend_name,
+           champion_code=EXCLUDED.champion_code, champion_name=EXCLUDED.champion_name,
+           deck=COALESCE(EXCLUDED.deck, match_decks.deck), self_reported=true`, [matchId, format, playerId, info.legendCode ?? null, info.legendName ?? null, info.championCode ?? null, info.championName ?? null, deck]);
+        }
+        else {
+            // reporte do oponente: só insere se ainda não há linha (não sobrescreve o self-report)
+            await this.pool.query(`INSERT INTO match_decks
+           (match_id, format, player_id, legend_code, legend_name, champion_code, champion_name, self_reported)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,false)
+         ON CONFLICT (match_id, player_id) DO NOTHING`, [matchId, format, playerId, info.legendCode ?? null, info.legendName ?? null, info.championCode ?? null, info.championName ?? null]);
+        }
+    }
     rowToMatch(r) {
         return {
             id: r.id,

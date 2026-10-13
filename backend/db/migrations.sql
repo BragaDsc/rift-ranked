@@ -35,3 +35,23 @@ CREATE TABLE IF NOT EXISTS player_likes (
   PRIMARY KEY (from_id, to_id)
 );
 CREATE INDEX IF NOT EXISTS idx_player_likes_to ON player_likes (to_id);
+
+-- Deck/Legend/champion jogado por cada jogador numa partida (base das estatísticas
+-- estilo "campeão do LoL"). Legend/champion são públicos (ficam em jogo); o deck
+-- completo só vem do próprio jogador (oponente é oculto). Sem FK em match_id de
+-- propósito (não bloquear o reset da ladder).
+CREATE TABLE IF NOT EXISTS match_decks (
+  match_id      uuid        NOT NULL,
+  format        text        NOT NULL,
+  player_id     uuid        NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  legend_code   text,
+  legend_name   text,
+  champion_code text,
+  champion_name text,
+  deck          jsonb,
+  self_reported boolean     NOT NULL DEFAULT false,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (match_id, player_id)
+);
+CREATE INDEX IF NOT EXISTS idx_match_decks_legend ON match_decks (legend_code);
+CREATE INDEX IF NOT EXISTS idx_match_decks_player ON match_decks (player_id);
