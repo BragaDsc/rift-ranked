@@ -25,12 +25,14 @@
   // Captura de investigação (atrás da flag ranked_debug): guarda os últimos frames
   // "cheios" do WS da partida p/ descobrir onde ficam deck/Legend. Off por padrão.
   const DEBUG = (() => { try { return localStorage.getItem("ranked_debug") === "1"; } catch { return false; } })();
-  const CAP_NOISE = /"type":"(presence_event|presence_update|ping|pong|rewind_confirmation_state)"/;
+  // Mantém só o que ajuda a achar o Legend: o snapshot inicial (estado completo) e
+  // qualquer frame que mencione legend/deck/champion/card. Mantém a captura pequena.
+  const CAP_KEEP = /"type":"authoritative_snapshot"|legend|deck|champion|"card/i;
   const capBuf: { t: number; m: string }[] = [];
   function capture(data: any) {
-    if (!DEBUG || typeof data !== "string" || CAP_NOISE.test(data)) return;
+    if (!DEBUG || typeof data !== "string" || !CAP_KEEP.test(data)) return;
     capBuf.push({ t: Date.now(), m: data.slice(0, 60000) });
-    if (capBuf.length > 150) capBuf.splice(0, capBuf.length - 150);
+    if (capBuf.length > 40) capBuf.splice(0, capBuf.length - 40);
   }
 
   // ---------------------- 1) Intercepta o WebSocket ----------------------

@@ -1,5 +1,5 @@
 {
-  "version": "0.3.22",
-  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.22",
-  "notes": "Captura de investigação (atrás da flag ranked_debug) com botão 'Copiar captura' no overlay, para mapear deck/Legend. Sem efeito com o debug desligado."
+  "version": "0.3.23",
+  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.23",
+  "notes": "Captura de investigação focada (snapshot inicial + frames com legend/deck/champion), atrás da flag ranked_debug."
 }
