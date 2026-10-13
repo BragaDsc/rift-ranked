@@ -230,6 +230,29 @@
       return JSON.parse(atob(b.replace(/-/g, "+").replace(/_/g, "/")));
     } catch { return null; }
   }
+  // Gera um token FRESCO pela Frontend API do Clerk (como o antigo getToken()).
+  // O cookie __session expira em ~60s e o RiftAtlas não o renova sozinho; mas o
+  // cookie de cliente (long-lived) autentica este POST, que devolve um JWT novo.
+  async function mintToken(): Promise<string | null> {
+    try {
+      const p = decodeJwt(sessionToken() || "");
+      const sid = p && p.sid;
+      const base = (p && typeof p.iss === "string" && p.iss) || "https://clerk.riftatlas.com";
+      if (sid) {
+        const r = await fetch(
+          base + "/v1/client/sessions/" + encodeURIComponent(sid) + "/tokens?_clerk_js_version=5.22.0",
+          { method: "POST", credentials: "include", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: "" },
+        );
+        if (r.ok) {
+          const d = await r.json();
+          if (d && d.jwt) return d.jwt;
+        }
+      }
+    } catch { /* cai pro fallback */ }
+    // fallbacks: window.Clerk (se voltar) e, por último, o cookie cru
+    try { const t = await window.Clerk?.session?.getToken?.(); if (t) return t; } catch { /* sem window.Clerk */ }
+    return sessionToken();
+  }
   function readIdentity() {
     // 1) window.Clerk (compat com a versão antiga do RiftAtlas)
     const c = window.Clerk;
@@ -265,9 +288,7 @@
     if (!d || d[TAG] !== true || d.dir !== "toPage") return;
     if (d.n !== NONCE) return; // carimbo da sessão ausente/errado → descarta
     if (d.kind === "getToken") {
-      let token: string | null = null;
-      try { token = (await window.Clerk?.session?.getToken?.()) || null; } catch { /* sem window.Clerk */ }
-      if (!token) token = sessionToken(); // fallback: cookie __session (JWT da sessão Clerk)
+      const token = await mintToken(); // token fresco via Clerk FAPI (cookie expira em ~60s)
       post({ kind: "token", reqId: d.reqId, token: token || null });
     } else if (d.kind === "getCapture") {
       post({ kind: "capture", reqId: d.reqId, frames: capBuf });

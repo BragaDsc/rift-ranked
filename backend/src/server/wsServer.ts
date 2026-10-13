@@ -328,6 +328,7 @@ export function startServer(opts) {
                     broadcastOnline(); // atualiza a contagem de online para todos
                 }
                 catch (err) {
+                    console.error("[auth] token rejeitado:", err?.code || err?.name || err?.message || err);
                     send0(ws, { type: "auth_error", message: "Token inválido." });
                     ws.close();
                 }

@@ -21,7 +21,9 @@ export async function verifyClerkToken(token) {
     if (AUTH_DISABLED) {
         return { clerkUserId: token || "dev-user", displayName: token || "Dev" };
     }
-    const { payload } = await jwtVerify(token, jwks, { issuer: ISSUER });
+    // tokens de sessão do Clerk duram ~60s; uma folga de relógio evita rejeição
+    // por pequena diferença de horário entre o cliente e o servidor.
+    const { payload } = await jwtVerify(token, jwks, { issuer: ISSUER, clockTolerance: 30 });
     const sub = payload.sub;
     if (!sub)
         throw new Error("Token sem 'sub'.");

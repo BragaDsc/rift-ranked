@@ -1,5 +1,5 @@
 {
-  "version": "0.3.32",
-  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.32",
-  "notes": "Corrige a conexão: o RiftAtlas parou de expor window.Clerk; a extensão agora lê a identidade e o token da sessão pelo cookie __session (JWT do Clerk). Resolve o travamento em 'Conectando…'."
+  "version": "0.3.33",
+  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.33",
+  "notes": "Corrige 'falha de autenticação': o cookie __session do RiftAtlas expira em ~60s e não é renovado; a extensão agora gera um token fresco pela API do Clerk a cada conexão. Resolve de vez o travamento em 'Conectando…'."
 }
