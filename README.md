@@ -12,6 +12,18 @@ que faz pareamento, orquestra as salas, resolve o resultado e serve o ladder e a
 > operadores do RiftAtlas. "League of Legends", "Riftbound" e nomes de cartas/Legends são
 > marcas de seus respectivos donos.
 
+## 🎮 Jogar (instalar a extensão)
+
+Quer só **jogar** o ranqueado? Instale a extensão no seu navegador — ela já se conecta sozinha
+ao servidor oficial e aparece sobre o RiftAtlas, sem configurar nada.
+
+➡️ **[Guia de instalação passo a passo (INSTALL.md)](INSTALL.md)** — Chrome, Edge e Firefox.
+
+Resumo: instale a extensão → entre em **https://play.riftatlas.com** logado → o painel do
+Rift Ranked aparece conectado → entre na fila. Ladder em **https://app.megacards.com.br/ranked**.
+
+O restante deste README é para **desenvolver / hospedar** o projeto.
+
 ## Recursos
 
 - 🎯 Fila e **pareamento por MMR** (Glicko-2), nos formatos Md1 e Md3.
