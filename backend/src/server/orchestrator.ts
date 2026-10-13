@@ -202,6 +202,9 @@ export class Orchestrator {
         // ainda falta o outro lado
         if (c.host == null || c.joiner == null) {
             this.send(playerId, { type: "confirm_waiting", matchId });
+            // garante que o oponente veja a janela de confirmação (mesmo que tenha
+            // recarregado a página ou que o cliente dele não tenha detectado o fim).
+            this.send(oppId, { type: "confirm_prompt", matchId });
             return;
         }
         // ambos confirmaram
@@ -266,6 +269,43 @@ export class Orchestrator {
             });
         }
         this.cleanup(m.id);
+    }
+    /**
+     * Retomada após reload/reconexão: se o jogador ainda está numa partida viva,
+     * reenvia o contexto (match_active) para a extensão restaurar o estado, e —
+     * se há uma confirmação de vencedor pendente — reabre a janela (confirm_prompt)
+     * ou mostra a espera (confirm_waiting), para a partida não travar no reload.
+     */
+    async sendResume(playerId) {
+        const matchId = this.playerMatch.get(playerId);
+        if (!matchId)
+            return;
+        const m = this.matches.get(matchId);
+        if (!m)
+            return;
+        const side = this.sideOf(m, playerId);
+        const oppId = side === "host" ? m.joinerId : m.hostId;
+        let oppRating = 0;
+        try {
+            const r = await this.repo.getRating(oppId, m.format);
+            oppRating = Math.round(r.rating);
+        }
+        catch { /* rating indisponível não impede a retomada */ }
+        this.send(playerId, {
+            type: "match_active",
+            matchId: m.id,
+            format: m.format,
+            side,
+            opponent: { displayName: this.nameOf(oppId), rating: oppRating },
+            state: m.state,
+        });
+        const c = this.confirmations.get(matchId);
+        if (c) {
+            if (c[side] != null)
+                this.send(playerId, { type: "confirm_waiting", matchId });
+            else
+                this.send(playerId, { type: "confirm_prompt", matchId });
+        }
     }
     /** Jogador presente reivindica vitória (oponente travando / não passa o turno). */
     onReportGrief(playerId, matchId) {

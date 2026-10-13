@@ -271,6 +271,8 @@ export function startServer(opts) {
                         playerId: player.id,
                         ratings: await ratingsView(repo, player.id),
                     });
+                    // retomada: se já estava numa partida (reload/reconexão), reenvia o contexto
+                    orch.sendResume(player.id).catch(() => { });
                 }
                 catch (err) {
                     send0(ws, { type: "auth_error", message: "Token inválido." });

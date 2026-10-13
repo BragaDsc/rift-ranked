@@ -90,6 +90,7 @@
       rateOpp: "Avalie o oponente", like: "Curtir", dislike: "Não curtir",
       waitingOpp: "Aguardando o oponente confirmar…",
       disagreeNote: "Vocês discordaram sobre o vencedor. Confirmem novamente.",
+      selectorWarn: "A interface do RiftAtlas pode ter mudado — talvez seja preciso atualizar a extensão.",
       authFail: (m) => "Falha na autenticação: " + m,
       queued: (f) => `Na fila (${f})…`, dequeued: "Fora da fila.",
       foundHost: (n, r) => `Partida encontrada vs ${n} (${r}) — você hospeda`,
@@ -124,6 +125,7 @@
       rateOpp: "Rate your opponent", like: "Like", dislike: "Dislike",
       waitingOpp: "Waiting for your opponent to confirm…",
       disagreeNote: "You disagreed on the winner. Please confirm again.",
+      selectorWarn: "RiftAtlas's UI may have changed — the extension might need an update.",
       authFail: (m) => "Authentication failed: " + m,
       queued: (f) => `In queue (${f})…`, dequeued: "Left the queue.",
       foundHost: (n, r) => `Match found vs ${n} (${r}) — you host`,
@@ -158,6 +160,7 @@
       rateOpp: "评价对手", like: "点赞", dislike: "点踩",
       waitingOpp: "等待对手确认…",
       disagreeNote: "你们对胜者有分歧，请再次确认。",
+      selectorWarn: "RiftAtlas 界面可能已变化 — 扩展可能需要更新。",
       authFail: (m) => "认证失败：" + m,
       queued: (f) => `匹配中（${f}）…`, dequeued: "已离开队列。",
       foundHost: (n, r) => `匹配成功 vs ${n}（${r}）— 由你创建房间`,
@@ -229,6 +232,7 @@
     queued: null,       // formato em fila (ou null) — controla o botão "Sair da fila"
     lastResult: null,   // { format, delta, youWon } — chip de +/- MMR estilo LoL
     confirm: null,      // { winner:"me"|"opp", rate:null|"like"|"dislike", waiting, round, note } — janela de confirmação
+    selectorWarn: false, // UI do RiftAtlas mudou (âncora essencial sumiu) — mostra aviso
     statusKey: () => T().connecting,
   };
   function setStatus(fn) { state.statusKey = typeof fn === "function" ? fn : () => fn; updateUI(); }
@@ -331,9 +335,22 @@
         break;
       case "confirm_waiting":
         if (state.confirm) { state.confirm.waiting = true; renderConfirm(); }
+        else if (state.match) { openConfirm(null); state.confirm.waiting = true; renderConfirm(); } // retomada: já confirmei antes do reload
         break;
       case "confirm_again":
         if (state.confirm) { state.confirm.waiting = false; state.confirm.round = msg.round || 2; state.confirm.note = T().disagreeNote; state.confirm.deadline = Date.now() + CONFIRM_MS; renderConfirm(); startConfirmTimer(); }
+        break;
+      // retomada após reload: restaura o contexto da partida ativa
+      case "match_active": {
+        state.queued = null;
+        const o = msg.opponent || {};
+        state.match = { matchId: msg.matchId, format: msg.format, side: msg.side, startedSent: true, confirmShown: false, oppName: o.displayName || "Oponente" };
+        setStatus(() => T().inGame); updateUI();
+        break;
+      }
+      // abre a janela de confirmação a pedido do servidor (reload / cliente não detectou o fim)
+      case "confirm_prompt":
+        if (state.match && !state.confirm) openConfirm(null); // sem vencedor pré-marcado → o jogador escolhe
         break;
       case "create_room": await doCreateRoom(msg.matchId, msg.format); break;
       case "join_room": await doJoinRoom(msg.roomCode); break;
@@ -403,7 +420,12 @@
       const code = S.roomCode(); if (!code) throw new Error("room code");
       send({ type: "room_code", matchId, roomCode: code });
       setStatus(() => T().roomCreated(code));
-    } catch (e) { setStatus(() => T().errCreate(e.message)); }
+      state.selectorWarn = false; updateUI(); // criou a sala → seletores OK
+    } catch (e) {
+      setStatus(() => T().errCreate(e.message));
+      // falhou por ÂNCORA ausente (não timeout): a UI do RiftAtlas provavelmente mudou
+      if (e.message === "Host Room" || e.message === "room code") { state.selectorWarn = true; updateUI(); }
+    }
   }
   async function doJoinRoom(code) {
     try {
@@ -413,6 +435,7 @@
       await waitFor(() => S.joinSpectateBtn(), 3000);
       S.joinSpectateBtn().click();
       setStatus(() => T().joined);
+      state.selectorWarn = false; updateUI();
     } catch (e) { setStatus(() => T().errJoin(e.message)); }
   }
 
@@ -553,7 +576,7 @@
     if (confirmEl) { try { confirmEl.remove(); } catch {} confirmEl = null; }
   }
   function submitConfirm() {
-    const c = state.confirm; if (!c || !state.match || c.waiting) return;
+    const c = state.confirm; if (!c || !state.match || c.waiting || !c.winner) return;
     c.waiting = true;
     send({ type: "confirm_result", matchId: state.match.matchId, winner: c.winner, rate: c.rate });
     renderConfirm();
@@ -596,7 +619,7 @@
           <button class="rk-cf-rt${rsel("like")}" data-r="like" title="${t.like}">👍 ${t.like}</button>
           <button class="rk-cf-rt dis${rsel("dislike")}" data-r="dislike" title="${t.dislike}">👎 ${t.dislike}</button>
         </div>
-        <button class="rk-cf-go" id="rk-cf-go">${t.confirmBtn}</button>`;
+        <button class="rk-cf-go" id="rk-cf-go"${c.winner ? "" : " disabled"}>${t.confirmBtn}</button>`;
     return `
       <style>
         #rk-confirm{position:fixed;inset:0;z-index:2147483600;display:grid;place-items:center;
@@ -633,6 +656,7 @@
         #rk-confirm .rk-cf-go{width:100%;cursor:pointer;border:1px solid rgba(200,170,110,.5);background:linear-gradient(180deg,#1d2a49,#15203a);
           color:#eef1f6;border-radius:10px;padding:13px 0;font-weight:800;font-size:14px;letter-spacing:.3px;transition:.14s}
         #rk-confirm .rk-cf-go:hover{background:linear-gradient(180deg,#24335a,#1a2744);border-color:rgba(200,170,110,.75);box-shadow:0 8px 22px -10px rgba(200,170,110,.6)}
+        #rk-confirm .rk-cf-go[disabled]{opacity:.4;cursor:default;box-shadow:none}
         #rk-confirm .rk-cf-wait{display:flex;flex-direction:column;align-items:center;gap:14px;padding:16px 0 8px;color:#b4bdca;text-align:center}
         #rk-confirm .rk-cf-spin{width:30px;height:30px;border-radius:50%;border:3px solid rgba(200,170,110,.2);border-top-color:#e4c877;animation:rkspin .8s linear infinite}
         @keyframes rkspin{to{transform:rotate(360deg)}}
@@ -727,6 +751,7 @@
           border:1px solid rgba(200,170,110,.32);border-radius:7px;padding:8px 10px;display:flex;align-items:center;gap:6px}
         #ranked-overlay .upd a{color:#e4c877;font-weight:800;text-decoration:none;margin-left:auto}
         #ranked-overlay .upd a:hover{text-decoration:underline}
+        #ranked-overlay .upd.warn{color:#e8b2ae;background:rgba(192,97,93,.12);border-color:rgba(192,97,93,.34)}
         #ranked-overlay .foot{margin-top:11px;text-align:center}
         #ranked-overlay .foot a{color:#7e6a3e;font-size:11px;text-decoration:none;font-weight:600;letter-spacing:.2px}
         #ranked-overlay .foot a:hover{color:#c8aa6e}
@@ -934,10 +959,12 @@
     // "Reivindicar vitória" removido: o vencedor é detectado automaticamente.
     if (state.griefWarning) act.innerHTML = `<button class="act contest">${T().contest}</button>`;
     else act.innerHTML = "";
-    // banner de atualização
+    // banners: atualização disponível + aviso de seletor (UI do RiftAtlas mudou)
     const upd = ui.querySelector("#rk-update");
-    if (state.update) upd.innerHTML = `<div class="upd"><span>${T().update(state.update.version)}</span><a href="${state.update.url}" target="_blank" rel="noopener">${T().download}</a></div>`;
-    else upd.innerHTML = "";
+    let updHtml = "";
+    if (state.update) updHtml += `<div class="upd"><span>${T().update(state.update.version)}</span><a href="${state.update.url}" target="_blank" rel="noopener">${T().download}</a></div>`;
+    if (state.selectorWarn) updHtml += `<div class="upd warn"><span>${T().selectorWarn}</span></div>`;
+    upd.innerHTML = updHtml;
   }
 
   // ----------------------------- boot -----------------------------

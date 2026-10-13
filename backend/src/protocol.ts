@@ -43,4 +43,8 @@ export type ServerMessage =
   /** Confirmação: aguardando o oponente; pediu confirmação de novo (divergência). */
   | { type: "confirm_waiting"; matchId: string }
   | { type: "confirm_again"; matchId: string; round: number }
+  /** Peça a este cliente para abrir a janela de confirmação (reload/sem detecção). */
+  | { type: "confirm_prompt"; matchId: string }
+  /** Retomada após reload: você ainda está nesta partida — restaure o contexto. */
+  | { type: "match_active"; matchId: string; format: Format; side: Side; opponent: { displayName: string; rating: number }; state: string }
   | { type: "error"; message: string };

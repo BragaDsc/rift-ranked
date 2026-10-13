@@ -1,5 +1,5 @@
 {
-  "version": "0.3.16",
-  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.16",
-  "notes": "Segurança: ponte validada por nonce + origem; removida a captura de debug e o endpoint aberto de diagnóstico."
+  "version": "0.3.17",
+  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.17",
+  "notes": "Robustez de UX: retomada da partida após recarregar a página; a janela de confirmação reabre para o oponente (reload/sem detecção); aviso quando a interface do RiftAtlas muda."
 }
