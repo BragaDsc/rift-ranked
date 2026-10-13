@@ -23,3 +23,6 @@ Thumbs.db
 # artefatos locais
 *.tmp
 debug-frames.json
+
+# Chrome Web Store build artifact
+extension/rift-ranked-chrome-*.zip

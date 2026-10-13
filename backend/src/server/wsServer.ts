@@ -46,6 +46,7 @@ function loadPage(name, fallback) {
 const LEADERBOARD_HTML = loadPage("leaderboard.html", "<!doctype html><meta charset=utf-8><title>Ranked</title><p>Leaderboard indisponível.</p>");
 const PROFILE_HTML = loadPage("player.html", "<!doctype html><meta charset=utf-8><title>Perfil</title><p>Perfil indisponível.</p>");
 const CHAMPIONS_HTML = loadPage("champions.html", "<!doctype html><meta charset=utf-8><title>Campeões</title><p>Indisponível.</p>");
+const PRIVACY_HTML = loadPage("privacidade.html", "<!doctype html><meta charset=utf-8><title>Privacidade</title><p>Indisponível.</p>");
 const EXT_VERSION_JSON = loadPage("ext/version.json", '{"version":"0.0.0"}');
 let EXT_ZIP = null;
 try {
@@ -87,6 +88,13 @@ export function startServer(opts) {
                 (url.pathname === "/ranked/campeoes" || url.pathname === "/ranked/champions" || url.pathname === "/ranked/legends")) {
                 res.setHeader("Content-Type", "text/html; charset=utf-8");
                 res.end(CHAMPIONS_HTML);
+                return;
+            }
+            // política de privacidade (exigida pela Chrome Web Store)
+            if (req.method === "GET" &&
+                (url.pathname === "/ranked/privacidade" || url.pathname === "/ranked/privacy")) {
+                res.setHeader("Content-Type", "text/html; charset=utf-8");
+                res.end(PRIVACY_HTML);
                 return;
             }
             if (req.method === "GET" && url.pathname === "/ranked/api/champions") {
