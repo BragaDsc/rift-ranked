@@ -16,6 +16,10 @@ extension/unpacked/
 # chaves
 *deploy_key*
 *.pem
+.secrets/
+# config local de deploy (dados do servidor — fica só no seu PC)
+scripts/deploy.local.env
+!scripts/deploy.local.env.example
 # OS / editor
 .DS_Store
 Thumbs.db

@@ -10,6 +10,8 @@
 #   pwsh extension/build-ext.ps1   (ou PowerShell no Windows)
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
+# carrega config local de deploy (RANKED_HOST/RANKED_SSH_KEY), se existir — git-ignorada
+[ -f "$HERE/scripts/deploy.local.env" ] && . "$HERE/scripts/deploy.local.env"
 KEY="${RANKED_SSH_KEY:?defina RANKED_SSH_KEY com o caminho da chave de deploy}"
 HOST="${RANKED_HOST:?defina RANKED_HOST com o destino ssh, ex.: root@seu-servidor}"
 APP="/opt/riftatlas-ranked"
