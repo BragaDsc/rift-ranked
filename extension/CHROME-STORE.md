@@ -66,6 +66,8 @@ Projeto de fãs, sem afiliação com a Riot Games ou com os operadores do RiftAt
 https://app.megacards.com.br/ranked/privacidade
 ```
 
+**E-mail de contato:** `riftboundbrasil@gmail.com`
+
 **Finalidade única (single purpose)**
 ```
 Adicionar um sistema de ranqueado (fila, pareamento e estatísticas) ao simulador RiftAtlas.
