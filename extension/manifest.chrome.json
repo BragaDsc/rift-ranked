@@ -1,8 +1,13 @@
 {
   "manifest_version": 3,
   "name": "Rift Ranked",
-  "version": "0.3.28",
+  "version": "0.3.29",
   "description": "Ranqueado por MMR (Glicko-2) para o RiftAtlas: fila, pareamento e orquestração de salas (Md1 e Md3).",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "permissions": ["storage"],
   "host_permissions": [
     "https://play.riftatlas.com/*",

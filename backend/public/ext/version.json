@@ -1,5 +1,5 @@
 {
-  "version": "0.3.28",
-  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.28",
-  "notes": "Queda do oponente: agora há 1 minuto para ele voltar antes do W.O. O jogador que ficou vê um cronômetro de reconexão; se o oponente não voltar em 1 min, a vitória é dada automaticamente."
+  "version": "0.3.29",
+  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.29",
+  "notes": "Adiciona o ícone da extensão (Rift Ranked) e prepara o pacote para a Chrome Web Store."
 }

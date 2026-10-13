@@ -3,10 +3,10 @@
 Tudo que você precisa para subir a extensão. O pacote já está pronto.
 
 ## Arquivo para subir
-`extension/rift-ranked-chrome-0.3.28.zip`
+`extension/rift-ranked-chrome-0.3.29.zip`
 (gere novas versões com: `pwsh -File scripts/build-chrome-zip.ps1`)
 
-Conteúdo do zip: `manifest.json` (versão Chrome, sem o bloco `gecko` do Firefox) + `dist/inpage.js` + `dist/content.js`.
+Conteúdo do zip: `manifest.json` (versão Chrome, sem o bloco `gecko` do Firefox) + `dist/inpage.js` + `dist/content.js` + `icons/` (16/48/128).
 
 ## Passo a passo
 1. Acesse o **Developer Dashboard**: https://chrome.google.com/webstore/devconsole
@@ -17,9 +17,9 @@ Conteúdo do zip: `manifest.json` (versão Chrome, sem o bloco `gecko` do Firefo
 6. Escolha a **visibilidade** (recomendo *Não listado* — veja a nota no fim).
 7. **Submit for review**.
 
-## Ícone (você fornece)
-A loja exige um **ícone 128×128 PNG** (enviado direto no painel, não precisa estar no zip).
-Qualquer logo quadrado do Rift Ranked serve.
+## Ícone
+Já incluído no pacote (`icons/icon16/48/128.png` — "R" dourado sobre fundo navy).
+No painel da loja, use o **`icons/icon128.png`** como ícone 128×128 da listagem.
 
 ## Imagens exigidas
 - 1 ícone 128×128.

@@ -22,6 +22,9 @@ function Add-Entry($archive, $src, $name) {
 Add-Entry $za (Join-Path $ext 'manifest.json') 'manifest.json'
 Add-Entry $za (Join-Path $out 'inpage.js') 'dist/inpage.js'
 Add-Entry $za (Join-Path $out 'content.js') 'dist/content.js'
+Add-Entry $za (Join-Path $ext 'icons/icon16.png') 'icons/icon16.png'
+Add-Entry $za (Join-Path $ext 'icons/icon48.png') 'icons/icon48.png'
+Add-Entry $za (Join-Path $ext 'icons/icon128.png') 'icons/icon128.png'
 $za.Dispose(); $fs.Close()
 $v = (Get-Content (Join-Path $ext 'manifest.json') -Raw | ConvertFrom-Json).version
 Write-Host "gerado $zip  (v$v, $((Get-Item $zip).Length) bytes)"
