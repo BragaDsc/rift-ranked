@@ -1,0 +1,8 @@
+# Normaliza finais de linha. Scripts que rodam no Linux (VPS) PRECISAM de LF —
+# CRLF quebraria `deploy.sh`/`*.sh` com erros tipo "bash\r: command not found".
+* text=auto eol=lf
+*.sh text eol=lf
+*.ps1 text eol=crlf
+*.png binary
+*.jpg binary
+*.zip binary

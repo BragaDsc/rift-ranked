@@ -1,0 +1,28 @@
+{
+  "name": "riftatlas-ranked-backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Backend do ranked RiftAtlas: núcleo de rating Glicko-2 (Md1/Md3) e, futuramente, fila/orquestração.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "smoke": "npm run build && node scripts/smoke.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "dev": "node --experimental-strip-types --watch src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "jose": "^5.9.6",
+    "pg": "^8.23.1",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "@types/pg": "^8.23.1",
+    "@types/ws": "^8.5.13",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
+  }
+}

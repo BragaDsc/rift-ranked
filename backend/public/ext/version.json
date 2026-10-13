@@ -1,0 +1,5 @@
+{
+  "version": "0.3.16",
+  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.16",
+  "notes": "Segurança: ponte validada por nonce + origem; removida a captura de debug e o endpoint aberto de diagnóstico."
+}

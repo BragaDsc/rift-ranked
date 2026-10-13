@@ -1,0 +1,23 @@
+# deps
+node_modules/
+# build output (regenerado por `npm run build` / push-backend.sh)
+backend/dist/
+# verificação de build (gerado)
+backend/dist-verify/
+# zip da extensão (artefato de build)
+extension/dist/
+# segredos / ambiente
+*.env
+.env
+.env.*
+!.env.example
+# chaves
+*deploy_key*
+*.pem
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log
+# artefatos locais
+*.tmp
+debug-frames.json

@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Rift Atlas — Perfil</title>
+  <style>
+    :root {
+      --bg: #0a0e16; --bg2: #0c1220; --line: rgba(197,170,110,.16); --line2: rgba(255,255,255,.055);
+      --gold: #c8aa6e; --txt: #e4e3dc; --dim: #8b94a3; --muted: #5b6676; --win: #74b56a; --loss: #c0615d;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--txt);
+      font: 14px/1.5 ui-sans-serif, system-ui, "Segoe UI", Roboto, Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+    a { color: inherit; }
+    .nums { font-variant-numeric: tabular-nums; }
+    .topbar { border-bottom: 1px solid var(--line); background: linear-gradient(180deg, #0c1322, var(--bg)); }
+    .topbar .inner { max-width: 820px; margin: 0 auto; padding: 15px 20px; display: flex; align-items: center; gap: 14px; }
+    .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+    .brand .a { font-weight: 800; letter-spacing: 3px; font-size: 11px; color: var(--gold); }
+    .brand .b { font-weight: 700; letter-spacing: 1px; font-size: 14px; }
+    .topbar .sp { flex: 1; }
+    .back { font-size: 12px; color: var(--muted); text-decoration: none; letter-spacing: .3px; }
+    .back:hover { color: var(--gold); }
+    .lang { display: flex; gap: 3px; margin-left: 14px; }
+    .lang button { cursor: pointer; background: 0; border: 0; color: var(--muted); font-size: 11px; font-weight: 700; padding: 3px 5px; border-radius: 4px; }
+    .lang button.on { color: var(--gold); background: rgba(197,170,110,.1); }
+    .wrap { max-width: 820px; margin: 0 auto; padding: 24px 20px 72px; }
+    .phead { display: flex; align-items: center; gap: 16px; margin-bottom: 22px; }
+    .pav { width: 56px; height: 56px; border-radius: 10px; display: grid; place-items: center; font-weight: 800; font-size: 24px; color: #0b0f16; flex: none; }
+    .pname { font-size: 22px; font-weight: 800; letter-spacing: .3px; }
+    .psub { color: var(--muted); font-size: 12.5px; margin-top: 3px; letter-spacing: .3px; }
+    .fmts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+    .fcard { background: var(--bg2); border: 1px solid var(--line2); border-radius: 8px; padding: 14px 16px; cursor: pointer; transition: .12s; }
+    .fcard:hover { border-color: rgba(197,170,110,.3); }
+    .fcard.active { border-color: var(--gold); background: #0e1526; }
+    .fcard .fl { font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); font-weight: 700; margin-bottom: 9px; }
+    .fcard .frow { display: flex; align-items: center; gap: 12px; }
+    .fcard .ft { line-height: 1.25; flex: 1; min-width: 0; }
+    .fcard .ftn { font-weight: 700; font-size: 15px; }
+    .fcard .flp { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+    .fcard .fstats { text-align: right; font-size: 12px; color: var(--dim); line-height: 1.5; white-space: nowrap; }
+    .fcard .fstats b { color: var(--txt); }
+    .fcard .fstats .wr.good { color: var(--win); } .fcard .fstats .wr.bad { color: var(--loss); }
+    .panel { background: var(--bg2); border: 1px solid var(--line2); border-radius: 8px; padding: 16px 18px; }
+    .panel h2 { margin: 0 0 2px; font-size: 13px; font-weight: 700; letter-spacing: .3px; }
+    .panel .cap { color: var(--muted); font-size: 11.5px; margin-bottom: 10px; }
+    .chart { width: 100%; display: block; }
+    .chart .grid { stroke: rgba(255,255,255,.06); stroke-width: 1; }
+    .chart .axis { fill: var(--muted); font-size: 10px; font-family: inherit; }
+    .chart .area { fill: url(#mmrfill); }
+    .chart .line { fill: none; stroke: var(--gold); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+    .chart .end { fill: var(--gold); }
+    .chart .endlabel { fill: var(--txt); font-size: 11px; font-weight: 700; font-family: inherit; }
+    .chart .cx { stroke: rgba(197,170,110,.5); stroke-width: 1; stroke-dasharray: 3 3; }
+    .chart .cxdot { fill: var(--gold); stroke: var(--bg2); stroke-width: 2; }
+    .tip { position: fixed; pointer-events: none; z-index: 10; background: #0e1526; border: 1px solid var(--line);
+      border-radius: 6px; padding: 6px 9px; font-size: 12px; color: var(--txt); opacity: 0; transition: opacity .08s; white-space: nowrap; }
+    .tip b { color: var(--gold); } .tip .d { color: var(--muted); font-size: 11px; }
+    .state { text-align: center; color: var(--dim); padding: 34px 10px; }
+    @media (max-width: 560px) { .fmts { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="inner">
+      <a class="brand" href="/ranked"><span class="a">RIFT ATLAS</span><span class="b" id="brandB">Perfil</span></a>
+      <div class="sp"></div>
+      <a class="back" id="back" href="/ranked">← Voltar ao ladder</a>
+      <div class="lang" id="lang"></div>
+    </div>
+  </div>
+  <div class="wrap" id="app"><div class="state">…</div></div>
+  <div class="tip" id="tip"></div>
+
+  <script>
+    const L = {
+      pt: { docTitle: "Rift Atlas — Perfil", brandB: "Perfil", back: "← Voltar ao ladder", sub: "Constructed · Temporada 1",
+        fmt1: "Melhor de 1", fmt3: "Melhor de 3", games: (n) => `${n} jogos`, w: "V", l: "D",
+        notRanked: "Não classificado", lp: (n) => `${n} LP`, placeLeft: (n) => `faltam ${n} colocação(ões)`,
+        chartTitle: (f) => `Evolução de MMR — ${f}`, matches: (n) => `${n} partida(s) registrada(s)`,
+        noMatches: "Sem partidas ranqueadas neste formato ainda.", notFound: "Perfil não encontrado.",
+        noPlayer: "Jogador não informado.", loading: "Carregando…", start: "início",
+        tiers: ["Bronze", "Prata", "Ouro", "Platina", "Esmeralda", "Diamante", "Mestre", "Grão-Mestre", "Desafiante"], loc: "pt-BR" },
+      en: { docTitle: "Rift Atlas — Profile", brandB: "Profile", back: "← Back to ladder", sub: "Constructed · Season 1",
+        fmt1: "Best of 1", fmt3: "Best of 3", games: (n) => `${n} games`, w: "W", l: "L",
+        notRanked: "Unranked", lp: (n) => `${n} LP`, placeLeft: (n) => `${n} placement(s) left`,
+        chartTitle: (f) => `MMR progression — ${f}`, matches: (n) => `${n} match(es) recorded`,
+        noMatches: "No ranked games in this format yet.", notFound: "Profile not found.",
+        noPlayer: "No player specified.", loading: "Loading…", start: "start",
+        tiers: ["Bronze", "Silver", "Gold", "Platinum", "Emerald", "Diamond", "Master", "Grandmaster", "Challenger"], loc: "en-US" },
+      zh: { docTitle: "Rift Atlas — 个人资料", brandB: "个人资料", back: "← 返回天梯", sub: "Constructed · 第 1 赛季",
+        fmt1: "单局 BO1", fmt3: "三局 BO3", games: (n) => `${n} 场`, w: "胜", l: "负",
+        notRanked: "未定级", lp: (n) => `${n} LP`, placeLeft: (n) => `还需 ${n} 场定级`,
+        chartTitle: (f) => `MMR 走势 — ${f}`, matches: (n) => `${n} 场记录`,
+        noMatches: "该模式暂无排位对局。", notFound: "未找到该资料。",
+        noPlayer: "未指定玩家。", loading: "加载中…", start: "起点",
+        tiers: ["黑铁", "白银", "黄金", "铂金", "翡翠", "钻石", "大师", "宗师", "王者"], loc: "zh-CN" },
+    };
+    function detectLang() {
+      const q = new URLSearchParams(location.search).get("lang"); if (q && L[q]) return q;
+      try { const s = localStorage.getItem("ranked_lang"); if (s && L[s]) return s; } catch {}
+      const n = (navigator.language || "en").toLowerCase();
+      return n.startsWith("pt") ? "pt" : n.startsWith("zh") ? "zh" : "en";
+    }
+    let lang = detectLang();
+    const t = () => L[lang];
+
+    const qs = new URLSearchParams(location.search);
+    const id = qs.get("id");
+    let fmt = qs.get("format") === "bo3" ? "bo3" : "bo1";
+    const DEMO = qs.has("demo");
+
+    const TIERS = [[1000, "#9d6b3f"], [1200, "#9aa7b4"], [1400, "#d2a43c"], [1600, "#3f9d9f"],
+      [1800, "#3f9d63"], [2000, "#5a88c4"], [2200, "#8e63c0"], [2350, "#c25049"], [2500, "#caa94f"]];
+    const ROMAN = ["IV", "III", "II", "I"];
+    function clientRank(rating, games) {
+      if (games < 5) return { status: "unranked", gamesNeeded: 5 - games };
+      let i = 0; TIERS.forEach((x, k) => { if (rating >= x[0]) i = k; });
+      const apex = i >= 6;
+      if (apex) return { status: "ranked", i, color: TIERS[i][1], apex, division: null, lp: Math.max(0, Math.round(rating - TIERS[i][0])) };
+      const band = (TIERS[i + 1][0] - TIERS[i][0]) / 4, d = Math.min(3, Math.floor((rating - TIERS[i][0]) / band));
+      return { status: "ranked", i, color: TIERS[i][1], apex, division: ROMAN[d], lp: Math.min(100, Math.max(0, Math.round(((rating - TIERS[i][0]) - d * band) / band * 100))) };
+    }
+    const AVC = ["#5a88c4", "#8e63c0", "#c0615d", "#74b56a", "#c8aa6e", "#4f9aa0", "#b07d4a"];
+    function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+    function avColor(n) { let h = 0; for (const c of n) h = (h * 31 + c.charCodeAt(0)) >>> 0; return AVC[h % AVC.length]; }
+    function shade(hex, p) { const n = parseInt(hex.slice(1), 16); let r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255; const to = p < 0 ? 0 : 255, a = Math.abs(p); r = Math.round((to - r) * a + r); g = Math.round((to - g) * a + g); b = Math.round((to - b) * a + b); return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1); }
+    let _g = 0;
+    function emblem(rk, size) {
+      size = size || 30; const gray = rk.status === "unranked"; const color = gray ? "#4a5663" : rk.color;
+      const apex = rk.status === "ranked" && !rk.division; const id2 = "g" + _g++;
+      return `<svg width="${size}" height="${size}" viewBox="0 0 40 40" style="display:block;flex:none">
+        <defs><linearGradient id="${id2}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${shade(color, .3)}"/><stop offset="1" stop-color="${shade(color, -.45)}"/></linearGradient></defs>
+        <path d="M20 2.5 L35 9.5 V23 C35 31 28 34.5 20 37.5 C12 34.5 5 31 5 23 V9.5 Z" fill="url(#${id2})" stroke="${shade(color, .35)}" stroke-width="1.3"/>
+        <path d="M20 2.5 L35 9.5 V15 C28 11.5 12 11.5 5 15 V9.5 Z" fill="#fff" fill-opacity="${gray ? .05 : .13}"/>
+        ${apex ? `<circle cx="20" cy="21" r="4.3" fill="#fff" fill-opacity=".9"/>` : (!gray && rk.division) ? `<text x="20" y="26" text-anchor="middle" font-size="13" font-weight="800" fill="#10131a" font-family="ui-sans-serif,system-ui,sans-serif">${rk.division}</text>` : ""}
+      </svg>`;
+    }
+    function tierName(rating, games) {
+      const rk = clientRank(rating, games);
+      if (rk.status === "unranked") return t().notRanked;
+      return rk.division ? `${t().tiers[rk.i]} ${rk.division}` : t().tiers[rk.i];
+    }
+    function lpText(rating, games) {
+      const rk = clientRank(rating, games);
+      return rk.status === "unranked" ? t().placeLeft(rk.gamesNeeded) : t().lp(rk.lp);
+    }
+
+    function fmtCard(label, data, key) {
+      const wr = data.winrate >= 50 ? "good" : "bad";
+      const rk = clientRank(data.rating, data.games);
+      return `<div class="fcard ${key === fmt ? "active" : ""}" data-f="${key}">
+        <div class="fl">${label}</div>
+        <div class="frow">${emblem(rk, 34)}
+          <div class="ft"><div class="ftn">${tierName(data.rating, data.games)}</div><div class="flp">${lpText(data.rating, data.games)} · ${data.rating} MMR</div></div>
+          <div class="fstats"><b>${data.games}</b> ${lang === "zh" ? "场" : lang === "en" ? "games" : "jogos"}<br><span class="wr ${wr}">${data.games ? data.winrate + "%" : "—"}</span> · ${data.wins}${t().w} ${data.losses}${t().l}</div>
+        </div></div>`;
+    }
+
+    function chartSVG(history) {
+      const W = 760, H = 240, P = { l: 44, r: 18, t: 16, b: 26 };
+      if (!history.length) return `<div class="state">${t().noMatches}</div>`;
+      const pts = history.slice();
+      const gap = pts.length > 1 ? pts[1].at - pts[0].at : 3600000;
+      pts.unshift({ at: pts[0].at - gap, rating: 1500, base: true });
+      const xs = pts.map(p => p.at), ys = pts.map(p => p.rating);
+      let minY = Math.min(...ys), maxY = Math.max(...ys);
+      const pad = Math.max(30, (maxY - minY) * 0.18); minY -= pad; maxY += pad;
+      const minX = Math.min(...xs), maxX = Math.max(...xs);
+      const px = (x) => P.l + (maxX === minX ? 0.5 : (x - minX) / (maxX - minX)) * (W - P.l - P.r);
+      const py = (y) => P.t + (1 - (y - minY) / (maxY - minY || 1)) * (H - P.t - P.b);
+      const ticks = 4, grid = [];
+      for (let i = 0; i <= ticks; i++) {
+        const v = minY + (maxY - minY) * i / ticks, y = py(v);
+        grid.push(`<line class="grid" x1="${P.l}" y1="${y.toFixed(1)}" x2="${W - P.r}" y2="${y.toFixed(1)}"/>`);
+        grid.push(`<text class="axis" x="${P.l - 8}" y="${(y + 3).toFixed(1)}" text-anchor="end">${Math.round(v)}</text>`);
+      }
+      const fmtD = (ms) => new Date(ms).toLocaleDateString(t().loc, { day: "2-digit", month: "2-digit" });
+      const xlab = `<text class="axis" x="${px(minX).toFixed(1)}" y="${H - 8}" text-anchor="start">${fmtD(minX)}</text>
+        <text class="axis" x="${px(maxX).toFixed(1)}" y="${H - 8}" text-anchor="end">${fmtD(maxX)}</text>`;
+      const line = pts.map((p, i) => `${i ? "L" : "M"}${px(p.at).toFixed(1)},${py(p.rating).toFixed(1)}`).join(" ");
+      const area = `M${px(pts[0].at).toFixed(1)},${(H - P.b).toFixed(1)} ` + pts.map(p => `L${px(p.at).toFixed(1)},${py(p.rating).toFixed(1)}`).join(" ") + ` L${px(pts[pts.length - 1].at).toFixed(1)},${(H - P.b).toFixed(1)} Z`;
+      const last = pts[pts.length - 1], lx = px(last.at), ly = py(last.rating);
+      const dots = pts.map((p, i) => `<circle class="pt" data-i="${i}" cx="${px(p.at).toFixed(1)}" cy="${py(p.rating).toFixed(1)}" r="9" fill="transparent"/>`).join("");
+      return `<svg class="chart" viewBox="0 0 ${W} ${H}" id="svg">
+        <defs><linearGradient id="mmrfill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c8aa6e" stop-opacity=".22"/><stop offset="1" stop-color="#c8aa6e" stop-opacity="0"/></linearGradient></defs>
+        ${grid.join("")}<path class="area" d="${area}"/><path class="line" d="${line}"/>
+        <circle class="end" cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="3.5"/>
+        <text class="endlabel" x="${(lx - 6).toFixed(1)}" y="${(ly - 9).toFixed(1)}" text-anchor="end">${Math.round(last.rating)}</text>
+        ${xlab}<line class="cx" id="cx" x1="0" y1="${P.t}" x2="0" y2="${H - P.b}" style="opacity:0"/>
+        <circle class="cxdot" id="cxdot" r="4" style="opacity:0"/>${dots}</svg>`;
+    }
+    function wireChart(pts) {
+      const svg = document.getElementById("svg"); if (!svg) return;
+      const cx = document.getElementById("cx"), dot = document.getElementById("cxdot"), tip = document.getElementById("tip");
+      const circles = [...svg.querySelectorAll(".pt")];
+      function show(i) {
+        const c = circles[i]; if (!c) return;
+        const x = +c.getAttribute("cx"), y = +c.getAttribute("cy");
+        cx.setAttribute("x1", x); cx.setAttribute("x2", x); cx.style.opacity = 1;
+        dot.setAttribute("cx", x); dot.setAttribute("cy", y); dot.style.opacity = 1;
+        const rect = svg.getBoundingClientRect(), sx = rect.width / 760, sy = rect.height / 240, p = pts[i];
+        tip.innerHTML = `<b>${Math.round(p.rating)} MMR</b><div class="d">${p.base ? t().start : new Date(p.at).toLocaleDateString(t().loc)}</div>`;
+        tip.style.left = (rect.left + x * sx + 12) + "px"; tip.style.top = (rect.top + y * sy - 10) + "px"; tip.style.opacity = 1;
+      }
+      circles.forEach((c, i) => c.addEventListener("mouseenter", () => show(i)));
+      svg.addEventListener("mousemove", (e) => {
+        const rect = svg.getBoundingClientRect(), vx = (e.clientX - rect.left) / rect.width * 760;
+        let best = 0, bd = Infinity; circles.forEach((c, i) => { const d = Math.abs(+c.getAttribute("cx") - vx); if (d < bd) { bd = d; best = i; } }); show(best);
+      });
+      svg.addEventListener("mouseleave", () => { cx.style.opacity = 0; dot.style.opacity = 0; tip.style.opacity = 0; });
+    }
+
+    function demoProfile() {
+      const hist = []; let r = 1500, ti = Date.now() - 20 * 86400000;
+      for (let i = 0; i < 18; i++) { r += Math.round((Math.random() - 0.42) * 70); ti += 86400000 * (0.6 + Math.random()); hist.push({ at: ti, rating: r }); }
+      const mk = (rating) => ({ rating, rd: 70, games: 18, wins: 11, losses: 7, winrate: 61, provisional: false });
+      return { player: { id: "demo", displayName: "Yasuo" }, format: fmt, bo1: mk(r), bo3: mk(1680), history: hist };
+    }
+
+    function langBar() {
+      document.getElementById("lang").innerHTML = ["pt", "en", "zh"].map(l =>
+        `<button data-l="${l}" class="${l === lang ? "on" : ""}">${l === "zh" ? "中" : l.toUpperCase()}</button>`).join("");
+      document.querySelectorAll("#lang button").forEach(b => b.addEventListener("click", () => {
+        lang = b.dataset.l; try { localStorage.setItem("ranked_lang", lang); } catch {}
+        document.documentElement.lang = t().loc; document.title = t().docTitle;
+        document.getElementById("brandB").textContent = t().brandB;
+        document.getElementById("back").textContent = t().back;
+        langBar(); load();
+      }));
+    }
+
+    async function load() {
+      const app = document.getElementById("app");
+      app.innerHTML = `<div class="state">${t().loading}</div>`;
+      if (!id && !DEMO) { app.innerHTML = `<div class="state">${t().noPlayer}</div>`; return; }
+      let data;
+      try { data = DEMO ? demoProfile() : await (await fetch(`/ranked/api/player?id=${encodeURIComponent(id)}&format=${fmt}`)).json(); if (data.error) throw 0; }
+      catch { app.innerHTML = `<div class="state">${t().notFound}</div>`; return; }
+      const name = data.player.displayName;
+      const idTag = data.player.id ? ` <span style="font-size:14px;font-weight:600;color:#6b7686;letter-spacing:.3px;vertical-align:middle">#${String(data.player.id).replace(/[^0-9a-f]/gi, "").slice(0, 4).toUpperCase()}</span>` : "";
+      app.innerHTML = `
+        <div class="phead">
+          <div class="pav" style="background:${avColor(name)}">${esc((name[0] || "?").toUpperCase())}</div>
+          <div><div class="pname">${esc(name)}${idTag}</div><div class="psub">${t().sub}</div></div>
+        </div>
+        <div class="fmts">${fmtCard(t().fmt1, data.bo1, "bo1")}${fmtCard(t().fmt3, data.bo3, "bo3")}</div>
+        <div class="panel">
+          <h2>${t().chartTitle(fmt === "bo3" ? t().fmt3 : t().fmt1)}</h2>
+          <div class="cap">${t().matches(data.history.length)}</div>
+          ${chartSVG(data.history)}
+        </div>`;
+      const pts = data.history.slice();
+      if (pts.length) { const gap = pts.length > 1 ? pts[1].at - pts[0].at : 3600000; pts.unshift({ at: pts[0].at - gap, rating: 1500, base: true }); }
+      wireChart(pts);
+      app.querySelectorAll(".fcard").forEach(c => c.addEventListener("click", () => {
+        fmt = c.dataset.f; const u = new URL(location.href); u.searchParams.set("format", fmt); history.replaceState(null, "", u); load();
+      }));
+    }
+
+    document.documentElement.lang = t().loc; document.title = t().docTitle;
+    document.getElementById("brandB").textContent = t().brandB;
+    document.getElementById("back").textContent = t().back;
+    langBar(); load();
+  </script>
+</body>
+</html>

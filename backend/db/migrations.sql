@@ -1,0 +1,37 @@
+-- Migrações idempotentes (rodam a cada deploy, seguras de repetir).
+-- Conduta/anti-abuso: strikes, bans e disputas por jogador.
+
+CREATE TABLE IF NOT EXISTS player_conduct (
+  player_id     uuid PRIMARY KEY REFERENCES players(id) ON DELETE CASCADE,
+  strikes       integer NOT NULL DEFAULT 0,       -- total histórico
+  active_strikes integer NOT NULL DEFAULT 0,      -- nos últimos 30 dias (recalculado)
+  last_strike_at timestamptz,
+  disputes      integer NOT NULL DEFAULT 0,       -- partidas que caíram em disputa
+  griefs        integer NOT NULL DEFAULT 0,       -- strikes por travar/não aceitar
+  banned_until  timestamptz,                      -- fila bloqueada até aqui
+  updated_at    timestamptz NOT NULL DEFAULT now()
+);
+
+-- Log de cada strike (auditoria).
+CREATE TABLE IF NOT EXISTS conduct_events (
+  id          bigserial PRIMARY KEY,
+  player_id   uuid NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  match_id    uuid REFERENCES matches(id) ON DELETE SET NULL,
+  kind        text NOT NULL,          -- 'grief' | 'dispute' | 'manual'
+  note        text,
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_conduct_events_player ON conduct_events (player_id, created_at);
+
+-- Avaliação do oponente (like=+1, dislike=-1): reputação usada no desempate da
+-- confirmação de vencedor. Uma opinião por par (a mais recente vale). Sem FK em
+-- match_id de propósito (não bloquear o reset da ladder que trunca `matches`).
+CREATE TABLE IF NOT EXISTS player_likes (
+  from_id    uuid        NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  to_id      uuid        NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  value      smallint    NOT NULL,       -- +1 like, -1 dislike
+  match_id   uuid,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (from_id, to_id)
+);
+CREATE INDEX IF NOT EXISTS idx_player_likes_to ON player_likes (to_id);

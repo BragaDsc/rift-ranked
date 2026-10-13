@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "RiftAtlas Ranked",
+  "version": "0.3.16",
+  "description": "Ranqueado por MMR (Glicko-2) para o RiftAtlas: fila, pareamento e orquestração de salas (Md1 e Md3).",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://play.riftatlas.com/*",
+    "https://app.megacards.com.br/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://play.riftatlas.com/*"],
+      "js": ["src/inpage.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://play.riftatlas.com/*"],
+      "js": ["src/selectors.js", "src/content.js"],
+      "run_at": "document_idle",
+      "world": "ISOLATED"
+    }
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "ranked@riftatlas",
+      "strict_min_version": "128.0"
+    }
+  }
+}
