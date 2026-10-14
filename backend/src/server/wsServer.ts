@@ -76,12 +76,33 @@ export function startServer(opts) {
     };
     // Observabilidade: contadores de auth. Um pico de authFail = o RiftAtlas
     // provavelmente mudou (Clerk/selectors) — sinal de quebra visível em /api/stats.
-    const metrics = { authOk: 0, authFail: 0, authFailTimes: [] as number[] };
-    const authFailsLastHour = () => {
-        const cut = Date.now() - 3600000;
-        metrics.authFailTimes = metrics.authFailTimes.filter((t) => t >= cut);
-        return metrics.authFailTimes.length;
-    };
+    const metrics = { authOk: 0, authFail: 0, authFailTimes: [] as number[], authOkTimes: [] as number[] };
+    const lastHour = (arr: number[]) => { const cut = Date.now() - 3600000; return arr.filter((t) => t >= cut); };
+    const authFailsLastHour = () => (metrics.authFailTimes = lastHour(metrics.authFailTimes)).length;
+    const okLastHour = () => (metrics.authOkTimes = lastHour(metrics.authOkTimes)).length;
+    // Alerta ATIVO de quebra: se a auth falha em massa (RiftAtlas mudou o Clerk/
+    // selectors), avisa num webhook (ALERT_WEBHOOK, ex.: Discord). No-op se não setado.
+    let alertActive = false;
+    async function notify(text: string) {
+        const url = process.env.ALERT_WEBHOOK;
+        if (!url) return;
+        try {
+            await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ content: text }) });
+        }
+        catch (e) { console.error("[alert] falha ao notificar:", e); }
+    }
+    function checkAuthHealth() {
+        const fails = authFailsLastHour(), oks = okLastHour();
+        const broken = fails >= 5 && fails > oks; // muitas falhas e mais falhas que sucessos
+        if (broken && !alertActive) {
+            alertActive = true;
+            notify(`🔴 Rift Ranked: possível quebra do RiftAtlas — ${fails} falhas de auth na última hora (só ${oks} sucessos). Verifique Clerk/__session.`);
+        }
+        else if (!broken && alertActive && oks > 0) {
+            alertActive = false;
+            notify(`🟢 Rift Ranked: auth normalizou (${oks} sucessos na última hora).`);
+        }
+    }
     const orch = new Orchestrator(repo, send, opts.config ?? DEFAULT_CONFIG);
     // -------------------- HTTP (health + leaderboard) --------------------
     const httpServer = http.createServer(async (req, res) => {
@@ -383,7 +404,7 @@ export function startServer(opts) {
                     // retomada: se já estava numa partida (reload/reconexão), reenvia o contexto
                     orch.sendResume(player.id).catch(() => { });
                     broadcastOnline(); // atualiza a contagem de online para todos
-                    metrics.authOk++;
+                    metrics.authOk++; metrics.authOkTimes.push(Date.now());
                 }
                 catch (err) {
                     metrics.authFail++; metrics.authFailTimes.push(Date.now());
@@ -415,9 +436,10 @@ export function startServer(opts) {
     const ticker = setInterval(() => {
         orch.tick().catch((e) => console.error("tick error", e));
     }, TICK_MS);
-    // snapshot de métricas a cada 5 min (série temporal p/ observabilidade)
+    // snapshot de métricas + verificação de saúde da auth a cada 5 min
     const metricsTimer = setInterval(() => {
         repo.saveMetricsSnapshot?.({ online: onlineCount(), ...orch.stats() }).catch(() => { });
+        checkAuthHealth();
     }, 5 * 60_000);
     httpServer.listen(port, () => {
         console.log(`[ranked] HTTP+WS ouvindo em :${port} (ws ${WS_PATH})`);
