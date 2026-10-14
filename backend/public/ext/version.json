@@ -1,5 +1,5 @@
 {
-  "version": "0.3.37",
-  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.37",
-  "notes": "UX do painel: cronometro de fila, status com cor/icone por estado (conectando/pronto/na fila/em partida/erro), erros acionaveis (faca login no RiftAtlas), ponto de status no minimizado, nome do oponente na reconexao, animacao de entrada e suporte a prefers-reduced-motion."
+  "version": "0.3.38",
+  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.38",
+  "notes": "Janela de confirmacao do vencedor repaginada: cronometro em anel (fica vermelho nos ultimos 10s), cards de jogador com avatar, vencedor em destaque com check, e botao Confirmar dourado quando ha escolha."
 }

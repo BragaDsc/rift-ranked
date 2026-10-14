@@ -643,8 +643,10 @@ import * as R from "./ranks";
     const urg = secs <= 10;
     const sEl = confirmEl.querySelector("#rk-cf-secs");
     const bEl = confirmEl.querySelector("#rk-cf-bar");
+    const rEl = confirmEl.querySelector("#rk-cf-ring");
     if (sEl) { sEl.textContent = secs; sEl.classList.toggle("urg", urg); }
     if (bEl) { bEl.style.width = pct + "%"; bEl.classList.toggle("urg", urg); }
+    if (rEl) { const C = 131.95; rEl.style.strokeDashoffset = (C * (1 - pct / 100)).toFixed(1); rEl.classList.toggle("urg", urg); } // anel de progresso
     return remMs;
   }
   function confirmTick() {
@@ -654,8 +656,11 @@ import * as R from "./ranks";
   }
   function startConfirmTimer() { stopConfirmTimer(); confirmTick(); confirmTimer = setInterval(confirmTick, 250); }
   function stopConfirmTimer() { if (confirmTimer) { clearInterval(confirmTimer); confirmTimer = null; } }
+  function initialOf(n) { return (String(n || "?").trim()[0] || "?").toUpperCase(); }
+  function avColor(n) { let h = 0; const s = String(n || ""); for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return "hsl(" + (h % 360) + " 42% 42%)"; }
   function confirmHTML() {
     const t = T(), c = state.confirm, opp = state.match?.oppName || "Oponente";
+    const meInit = initialOf(state.identity?.username || t.youWonOpt);
     const sel = (w) => c.winner === w ? " sel" : "";
     const rsel = (r) => c.rate === r ? " on" : "";
     const note = c.note ? `<div class="rk-cf-note">${c.note}</div>` : "";
@@ -664,41 +669,47 @@ import * as R from "./ranks";
       : `
         <div class="rk-cf-q">${t.whoWon}</div>
         <div class="rk-cf-opts">
-          <button class="rk-cf-opt${sel("me")}" data-w="me">${t.youWonOpt}</button>
-          <button class="rk-cf-opt${sel("opp")}" data-w="opp">${esc(opp)}</button>
+          <button class="rk-cf-opt${sel("me")}" data-w="me"><span class="rk-cf-av rk-me">${meInit}</span><span class="rk-cf-nm">${esc(t.youWonOpt)}</span><span class="rk-cf-chk">✓</span></button>
+          <button class="rk-cf-opt${sel("opp")}" data-w="opp"><span class="rk-cf-av" style="background:${avColor(opp)}">${esc(initialOf(opp))}</span><span class="rk-cf-nm">${esc(opp)}</span><span class="rk-cf-chk">✓</span></button>
         </div>
         <div class="rk-cf-rate-l">${t.rateOpp}</div>
         <div class="rk-cf-rate">
           <button class="rk-cf-rt${rsel("like")}" data-r="like" title="${t.like}">👍 ${t.like}</button>
           <button class="rk-cf-rt dis${rsel("dislike")}" data-r="dislike" title="${t.dislike}">👎 ${t.dislike}</button>
         </div>
-        <button class="rk-cf-go" id="rk-cf-go"${c.winner ? "" : " disabled"}>${t.confirmBtn}</button>`;
+        <button class="rk-cf-go${c.winner ? " ready" : ""}" id="rk-cf-go"${c.winner ? "" : " disabled"}>${t.confirmBtn}</button>`;
     return `
       <style>
         #rk-confirm{position:fixed;inset:0;z-index:2147483600;display:grid;place-items:center;
-          background:rgba(6,9,16,.72);backdrop-filter:blur(3px);
+          background:rgba(6,9,16,.74);backdrop-filter:blur(4px);
           font:14px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:#dbe2ee}
-        #rk-confirm .rk-cf-card{width:340px;max-width:92vw;background:linear-gradient(180deg,#0e1728,#0a0f1c);
-          border:1px solid rgba(200,170,110,.32);border-radius:14px;padding:20px 20px 18px;position:relative;
-          box-shadow:0 30px 70px -20px rgba(0,0,0,.9),0 0 0 1px rgba(0,0,0,.4)}
-        #rk-confirm .rk-cf-card::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;border-radius:14px 14px 0 0;
-          background:linear-gradient(90deg,transparent,#c8aa6e,#e4c877,#c8aa6e,transparent)}
+        #rk-confirm .rk-cf-card{width:344px;max-width:92vw;background:linear-gradient(180deg,#0e1a2e,#080d18);
+          border:1px solid rgba(200,170,110,.28);border-radius:16px;padding:20px 20px 18px;position:relative;
+          box-shadow:0 34px 80px -24px rgba(0,0,0,.92),inset 0 1px 0 rgba(255,255,255,.04);animation:rkcf-in .22s ease both}
+        @keyframes rkcf-in{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
+        #rk-confirm .rk-cf-card::before{content:"";position:absolute;left:0;right:0;top:0;height:1px;border-radius:16px 16px 0 0;
+          background:linear-gradient(90deg,transparent,rgba(232,207,148,.85),transparent)}
         #rk-confirm .rk-cf-t{font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:#c8aa6e;font-weight:800;text-align:center}
-        #rk-confirm .rk-cf-q{font-size:17px;font-weight:700;color:#eef1f6;text-align:center;margin:10px 0 14px}
-        #rk-confirm .rk-cf-count{display:flex;flex-direction:column;align-items:center;gap:7px;margin:12px 0 4px}
-        #rk-confirm .rk-cf-secs{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums;color:#e4c877;line-height:1;transition:color .15s}
-        #rk-confirm .rk-cf-secs::after{content:"s";font-size:13px;font-weight:700;opacity:.7;margin-left:1px}
+        #rk-confirm .rk-cf-q{font-size:16px;font-weight:700;color:#eef1f6;text-align:center;margin:4px 0 14px}
+        #rk-confirm .rk-cf-ringwrap{position:relative;width:66px;height:66px;margin:14px auto 8px}
+        #rk-confirm .rk-cf-svg{width:66px;height:66px;transform:rotate(-90deg)}
+        #rk-confirm .rk-cf-trk{fill:none;stroke:rgba(255,255,255,.08);stroke-width:4}
+        #rk-confirm .rk-cf-prg{fill:none;stroke:#e4c877;stroke-width:4;stroke-linecap:round;stroke-dasharray:131.95;stroke-dashoffset:0;transition:stroke-dashoffset .25s linear,stroke .2s}
+        #rk-confirm .rk-cf-prg.urg{stroke:#e89a96}
+        #rk-confirm .rk-cf-secs{position:absolute;inset:0;display:grid;place-items:center;font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;color:#e4c877;transition:color .15s}
         #rk-confirm .rk-cf-secs.urg{color:#e89a96}
-        #rk-confirm .rk-cf-bar{width:100%;height:4px;border-radius:999px;background:rgba(0,0,0,.4);overflow:hidden}
-        #rk-confirm .rk-cf-bar > i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#b98f3e,#e4c877)}
-        #rk-confirm .rk-cf-bar > i.urg{background:linear-gradient(90deg,#c0615d,#e89a96)}
         #rk-confirm .rk-cf-note{font-size:12px;color:#e0b06a;background:rgba(200,150,70,.12);border:1px solid rgba(200,150,70,.3);
           border-radius:8px;padding:8px 10px;margin:4px 0 12px;text-align:center}
         #rk-confirm .rk-cf-opts{display:flex;gap:10px;margin-bottom:16px}
-        #rk-confirm .rk-cf-opt{flex:1;cursor:pointer;border:1px solid rgba(200,170,110,.3);background:linear-gradient(180deg,#16203a,#111a2e);
-          color:#eef1f6;border-radius:10px;padding:16px 8px;font-weight:700;font-size:14px;transition:.14s;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-        #rk-confirm .rk-cf-opt:hover{border-color:rgba(200,170,110,.6)}
-        #rk-confirm .rk-cf-opt.sel{background:linear-gradient(180deg,#e4c877,#c8aa6e);color:#0b0f16;border-color:#e4c877;box-shadow:0 8px 20px -10px rgba(200,170,110,.7)}
+        #rk-confirm .rk-cf-opt{position:relative;flex:1;min-width:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;
+          border:1px solid rgba(200,170,110,.25);background:linear-gradient(180deg,#14223c,#0e1a2e);color:#eef1f6;border-radius:12px;padding:14px 8px;font-weight:700;font-size:13px;transition:.14s}
+        #rk-confirm .rk-cf-opt:hover{border-color:rgba(200,170,110,.55);transform:translateY(-1px)}
+        #rk-confirm .rk-cf-opt.sel{background:linear-gradient(180deg,rgba(228,200,119,.22),rgba(200,170,110,.07));border-color:#e4c877;box-shadow:0 10px 26px -12px rgba(200,170,110,.6)}
+        #rk-confirm .rk-cf-av{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;font-size:18px;font-weight:800;color:#fff;flex:none;background:#5c7791;text-shadow:0 1px 2px rgba(0,0,0,.4)}
+        #rk-confirm .rk-cf-av.rk-me{background:linear-gradient(160deg,#f0d89a,#c8aa6e);color:#140e02;text-shadow:none}
+        #rk-confirm .rk-cf-nm{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        #rk-confirm .rk-cf-chk{position:absolute;top:7px;right:8px;width:18px;height:18px;border-radius:50%;background:#e4c877;color:#0b0f16;font-size:11px;font-weight:900;display:none;place-items:center}
+        #rk-confirm .rk-cf-opt.sel .rk-cf-chk{display:grid}
         #rk-confirm .rk-cf-rate-l{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#8b7340;font-weight:800;margin:2px 2px 7px}
         #rk-confirm .rk-cf-rate{display:flex;gap:8px;margin-bottom:18px}
         #rk-confirm .rk-cf-rt{flex:1;cursor:pointer;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);
@@ -706,17 +717,22 @@ import * as R from "./ranks";
         #rk-confirm .rk-cf-rt:hover{background:rgba(255,255,255,.07)}
         #rk-confirm .rk-cf-rt.on{background:rgba(116,181,106,.18);border-color:rgba(116,181,106,.5);color:#9bd897}
         #rk-confirm .rk-cf-rt.dis.on{background:rgba(192,97,93,.18);border-color:rgba(192,97,93,.5);color:#e89a96}
-        #rk-confirm .rk-cf-go{width:100%;cursor:pointer;border:1px solid rgba(200,170,110,.5);background:linear-gradient(180deg,#1d2a49,#15203a);
-          color:#eef1f6;border-radius:10px;padding:13px 0;font-weight:800;font-size:14px;letter-spacing:.3px;transition:.14s}
-        #rk-confirm .rk-cf-go:hover{background:linear-gradient(180deg,#24335a,#1a2744);border-color:rgba(200,170,110,.75);box-shadow:0 8px 22px -10px rgba(200,170,110,.6)}
+        #rk-confirm .rk-cf-go{width:100%;cursor:pointer;border:1px solid rgba(200,170,110,.5);background:linear-gradient(180deg,#19274a,#111d33);
+          color:#eef1f6;border-radius:11px;padding:13px 0;font-weight:800;font-size:14px;letter-spacing:.3px;transition:.14s}
+        #rk-confirm .rk-cf-go.ready{background:linear-gradient(180deg,#f0d89a,#c8aa6e);color:#140e02;border-color:#e8cf94}
+        #rk-confirm .rk-cf-go.ready:hover{box-shadow:0 10px 24px -10px rgba(200,170,110,.7)}
         #rk-confirm .rk-cf-go[disabled]{opacity:.4;cursor:default;box-shadow:none}
         #rk-confirm .rk-cf-wait{display:flex;flex-direction:column;align-items:center;gap:14px;padding:16px 0 8px;color:#b4bdca;text-align:center}
         #rk-confirm .rk-cf-spin{width:30px;height:30px;border-radius:50%;border:3px solid rgba(200,170,110,.2);border-top-color:#e4c877;animation:rkspin .8s linear infinite}
         @keyframes rkspin{to{transform:rotate(360deg)}}
+        @media (prefers-reduced-motion: reduce){ #rk-confirm *{animation:none!important;transition:none!important} }
       </style>
       <div class="rk-cf-card">
         <div class="rk-cf-t">${t.matchOver}</div>
-        <div class="rk-cf-count"><div class="rk-cf-secs" id="rk-cf-secs">30</div><div class="rk-cf-bar"><i id="rk-cf-bar"></i></div></div>
+        <div class="rk-cf-ringwrap">
+          <svg class="rk-cf-svg" viewBox="0 0 48 48"><circle class="rk-cf-trk" cx="24" cy="24" r="21"/><circle class="rk-cf-prg" id="rk-cf-ring" cx="24" cy="24" r="21"/></svg>
+          <div class="rk-cf-secs" id="rk-cf-secs">30</div>
+        </div>
         ${note}
         ${body}
       </div>`;
