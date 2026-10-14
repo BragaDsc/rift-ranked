@@ -73,7 +73,36 @@
     .state { text-align: center; color: var(--dim); padding: 52px 18px; }
     .state .h { color: var(--txt); font-weight: 600; margin-bottom: 4px; }
     .foot { margin-top: 16px; font-size: 11.5px; color: var(--muted); letter-spacing: .2px; }
-    @media (max-width: 640px) { .hide-sm { display: none; } .topbar .inner, .wrap { padding-left: 13px; padding-right: 13px; } }
+    /* Mobile: a tabela vira lista flex (evita o overflow do table-layout automático). */
+    @media (max-width: 640px) {
+      .topbar .inner { flex-wrap: wrap; gap: 6px 12px; padding: 12px 14px; }
+      .brand { flex: 1 1 100%; }
+      .season { display: none; }
+      .lang { margin-left: auto; }
+      .wrap { padding: 16px 12px 60px; }
+      .controls { margin-bottom: 10px; }
+      .tabs { gap: 18px; }
+      thead { display: none; }
+      table, tbody, tr, td { display: block; }
+      tbody tr { display: flex; align-items: center; gap: 9px; padding: 11px 12px; border-bottom: 1px solid var(--line2); }
+      tbody tr:last-child { border-bottom: 0; }
+      tbody tr.r1 { border-left: 3px solid var(--gold); }
+      tbody tr.r2 { border-left: 3px solid #9fb0c0; }
+      tbody tr.r3 { border-left: 3px solid #b07d4a; }
+      tbody td { padding: 0 !important; border: 0 !important; box-shadow: none !important; }
+      tbody td.rk { width: 18px; flex: none; text-align: center; }
+      tbody td:nth-child(2) { flex: none; }
+      tbody td:nth-child(3) { flex: 1 1 auto; min-width: 0; }
+      tbody td:nth-child(5) { flex: none; margin-left: auto; }
+      tbody td:nth-child(6) { flex: none; min-width: 40px; text-align: right; }
+      .tier { gap: 8px; }
+      .tier .meta .lp { display: none; }
+      .tier .tn { font-size: 12px; max-width: 76px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .who .av { width: 24px; height: 24px; font-size: 11px; }
+      .nm { font-size: 12.5px; }
+      .tag, .idt { display: none; }
+    }
+    @media (max-width: 330px) { th#h-wr, td.wr { display: none; } }
   </style>
 </head>
 <body>
