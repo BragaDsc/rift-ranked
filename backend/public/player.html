@@ -300,6 +300,31 @@
             </div>`;
           }).join("")}</div>
         </div>` : "";
+      const mh = data.matchHistory || [];
+      const L = (t().loc || "en").slice(0, 2);
+      const histTitle = ({ pt: "Últimas partidas", en: "Recent matches", zh: "最近对局" })[L] || "Recent matches";
+      const histHtml = mh.length ? `
+        <div class="panel">
+          <h2>${histTitle}</h2>
+          <div style="display:flex;flex-direction:column;gap:6px">
+          ${mh.map((x) => {
+            const win = x.result === "win", loss = x.result === "loss";
+            const col = win ? "#4f9d57" : loss ? "#a44b47" : "#6b7686";
+            const dt = x.endedAt ? new Date(x.endedAt).toLocaleDateString() : "";
+            const delta = x.delta == null ? "" : (x.delta >= 0 ? "+" + x.delta : "−" + Math.abs(x.delta));
+            const dcol = x.delta == null ? "#8b94a3" : (x.delta >= 0 ? "#7fc47a" : "#d1706c");
+            const leg = x.legendCode
+              ? `<img src="${legIcon(x.legendCode)}" title="${esc(x.legendName || "")}" style="width:30px;height:40px;object-fit:cover;border-radius:5px;border:1px solid rgba(200,170,110,.2);flex:none;background:#0b1220">`
+              : `<div style="width:30px;height:40px;flex:none"></div>`;
+            return `<div style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.05);border-left:3px solid ${col};border-radius:8px">
+              ${leg}
+              <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:13px;color:#eef1f6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.opponent || "Oponente")}</div><div style="font-size:11px;color:#8b94a3">${(x.format || "").toUpperCase()} · ${dt}</div></div>
+              <span style="font-weight:800;font-size:13px;color:${col};width:20px;text-align:center">${win ? "V" : loss ? "D" : "—"}</span>
+              <span style="font-weight:800;font-size:12.5px;color:${dcol};width:48px;text-align:right;font-variant-numeric:tabular-nums">${delta}</span>
+            </div>`;
+          }).join("")}
+          </div>
+        </div>` : "";
       app.innerHTML = `
         <div class="phead">
           <div class="pav" style="background:${avColor(name)}">${esc((name[0] || "?").toUpperCase())}</div>
@@ -312,7 +337,8 @@
           <h2>${t().chartTitle(fmt === "bo3" ? t().fmt3 : t().fmt1)}</h2>
           <div class="cap">${t().matches(data.history.length)}</div>
           ${chartSVG(data.history)}
-        </div>`;
+        </div>
+        ${histHtml}`;
       const pts = data.history.slice();
       if (pts.length) { const gap = pts.length > 1 ? pts[1].at - pts[0].at : 3600000; pts.unshift({ at: pts[0].at - gap, rating: 1500, base: true }); }
       wireChart(pts);

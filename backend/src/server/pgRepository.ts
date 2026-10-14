@@ -380,6 +380,33 @@ export class PgRepository {
         }
         return [...byOpp.values()];
     }
+    /** Histórico recente de partidas do jogador (oponente, resultado, ±MMR, Legend). */
+    async playerHistory(playerId, limit = 20) {
+        const { rows } = await this.pool.query(`SELECT m.id, m.format, m.ended_at, m.winner_id, m.result_reason,
+              o.display_name AS opp_name,
+              rh.rating_after - rh.rating_before AS delta,
+              mine.legend_code AS legend_code, mine.legend_name AS legend_name
+         FROM matches m
+         JOIN players o ON o.id = (CASE WHEN m.player_a = $1 THEN m.player_b ELSE m.player_a END)
+         LEFT JOIN rating_history rh ON rh.match_id = m.id AND rh.player_id = $1
+         LEFT JOIN match_decks mine ON mine.match_id = m.id AND mine.player_id = $1
+        WHERE (m.player_a = $1 OR m.player_b = $1)
+          AND m.state IN ('RATED','RESOLVED') AND m.ended_at IS NOT NULL
+        ORDER BY m.ended_at DESC
+        LIMIT $2`, [playerId, Math.min(Number(limit) || 20, 50)]);
+        return rows.map((r) => ({
+            matchId: r.id, format: r.format, endedAt: r.ended_at ? new Date(r.ended_at).getTime() : null,
+            opponent: r.opp_name,
+            result: r.winner_id == null ? "void" : (r.winner_id === playerId ? "win" : "loss"),
+            reason: r.result_reason,
+            delta: r.delta == null ? null : Math.round(Number(r.delta)),
+            legendCode: r.legend_code, legendName: r.legend_name,
+        }));
+    }
+    /** Reset de temporada: zera ratings/partidas/filas/conduta. Mantém contas e reputação (likes). */
+    async resetSeason() {
+        await this.pool.query(`TRUNCATE rating_history, match_decks, matches, player_ratings, queue_entries, conduct_events, player_conduct RESTART IDENTITY CASCADE`);
+    }
     /** Matchup GLOBAL Legend vs Legend (direcionado): A enfrentou B, quantos A venceu. */
     async legendMatchups(format) {
         const { rows } = await this.pool.query(`SELECT a.legend_code AS a_code, max(a.legend_name) AS a_name,

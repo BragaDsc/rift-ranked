@@ -41,6 +41,10 @@ export interface Repository {
   playerHeadToHead?(playerId: PlayerId, format: Format): Promise<any[]>;
   /** Matchup global Legend vs Legend (direcionado). */
   legendMatchups?(format: Format): Promise<any[]>;
+  /** Histórico recente de partidas do jogador (oponente, resultado, ±MMR, Legend). */
+  playerHistory?(playerId: PlayerId, limit?: number): Promise<any[]>;
+  /** Reset de temporada (destrutivo): zera ratings/partidas/filas/conduta; mantém contas e likes. */
+  resetSeason?(): Promise<void>;
 }
 
 export interface ChampionStat {

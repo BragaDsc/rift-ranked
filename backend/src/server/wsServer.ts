@@ -162,6 +162,7 @@ export function startServer(opts) {
                     champions,
                     headToHead,
                     history: await repo.ratingHistory(id, format, 200),
+                    matchHistory: (await repo.playerHistory?.(id, 20)) ?? [],
                 }));
                 return;
             }
@@ -283,6 +284,23 @@ export function startServer(opts) {
                         endedAt: Date.now(),
                     });
                     res.end(JSON.stringify({ ok: true, winnerId, strikedPlayer: loserId }));
+                    return;
+                }
+                // reset de temporada (destrutivo): exige token + confirm=RESET
+                if (req.method === "POST" && url.pathname === "/ranked/api/admin/reset-season") {
+                    if (url.searchParams.get("confirm") !== "RESET") {
+                        res.statusCode = 400;
+                        res.end(JSON.stringify({ error: "passe ?confirm=RESET para confirmar" }));
+                        return;
+                    }
+                    if (!repo.resetSeason) {
+                        res.statusCode = 501;
+                        res.end(JSON.stringify({ error: "não suportado neste repositório" }));
+                        return;
+                    }
+                    await repo.resetSeason();
+                    console.warn("[ranked] temporada RESETADA via admin");
+                    res.end(JSON.stringify({ ok: true }));
                     return;
                 }
                 res.statusCode = 404;
