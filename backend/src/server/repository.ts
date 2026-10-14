@@ -45,6 +45,9 @@ export interface Repository {
   playerHistory?(playerId: PlayerId, limit?: number): Promise<any[]>;
   /** Reset de temporada (destrutivo): zera ratings/partidas/filas/conduta; mantém contas e likes. */
   resetSeason?(): Promise<void>;
+  /** Observabilidade: grava um snapshot de métricas e lê os recentes. */
+  saveMetricsSnapshot?(s: { online: number; queued: { bo1: number; bo3: number }; activeMatches: number }): Promise<void>;
+  recentMetrics?(hours?: number): Promise<any[]>;
 }
 
 export interface ChampionStat {

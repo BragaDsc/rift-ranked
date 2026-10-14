@@ -74,6 +74,14 @@ export function startServer(opts) {
                 c.ws.send(payload);
         }
     };
+    // Observabilidade: contadores de auth. Um pico de authFail = o RiftAtlas
+    // provavelmente mudou (Clerk/selectors) — sinal de quebra visível em /api/stats.
+    const metrics = { authOk: 0, authFail: 0, authFailTimes: [] as number[] };
+    const authFailsLastHour = () => {
+        const cut = Date.now() - 3600000;
+        metrics.authFailTimes = metrics.authFailTimes.filter((t) => t >= cut);
+        return metrics.authFailTimes.length;
+    };
     const orch = new Orchestrator(repo, send, opts.config ?? DEFAULT_CONFIG);
     // -------------------- HTTP (health + leaderboard) --------------------
     const httpServer = http.createServer(async (req, res) => {
@@ -176,10 +184,13 @@ export function startServer(opts) {
                 res.end(JSON.stringify({ count: onlineCount() }));
                 return;
             }
-            // métricas gerais (observabilidade): online, partidas ativas, filas
+            // métricas gerais (observabilidade): online, partidas ativas, filas, auth
             if (req.method === "GET" && url.pathname === "/ranked/api/stats") {
                 res.setHeader("Cache-Control", "no-store, must-revalidate");
-                res.end(JSON.stringify({ online: onlineCount(), ...orch.stats() }));
+                res.end(JSON.stringify({
+                    online: onlineCount(), ...orch.stats(),
+                    authOk: metrics.authOk, authFail: metrics.authFail, authFailsLastHour: authFailsLastHour(),
+                }));
                 return;
             }
             // versão da extensão (notificador de atualização)
@@ -226,12 +237,23 @@ export function startServer(opts) {
                 }));
                 return;
             }
-            // --- admin de disputas (protegido por token) ---
+            // --- admin (protegido por token) ---
             if (url.pathname.startsWith("/ranked/api/admin/")) {
-                const token = url.searchParams.get("token");
+                // preferir header (não vaza em logs/histórico); query mantida p/ compat
+                const auth = String(req.headers["authorization"] || "");
+                const token = (req.headers["x-admin-token"] as string)
+                    || (auth.startsWith("Bearer ") ? auth.slice(7) : "")
+                    || url.searchParams.get("token");
                 if (!process.env.ADMIN_TOKEN || token !== process.env.ADMIN_TOKEN) {
                     res.statusCode = 403;
                     res.end(JSON.stringify({ error: "forbidden" }));
+                    return;
+                }
+                // métricas recentes (série temporal)
+                if (req.method === "GET" && url.pathname === "/ranked/api/admin/metrics") {
+                    const hours = Number(url.searchParams.get("hours") ?? 24);
+                    const snapshots = (await repo.recentMetrics?.(hours)) ?? [];
+                    res.end(JSON.stringify({ hours, snapshots, live: { online: onlineCount(), ...orch.stats(), authOk: metrics.authOk, authFail: metrics.authFail, authFailsLastHour: authFailsLastHour() } }));
                     return;
                 }
                 if (req.method === "GET" && url.pathname === "/ranked/api/admin/disputes") {
@@ -361,8 +383,10 @@ export function startServer(opts) {
                     // retomada: se já estava numa partida (reload/reconexão), reenvia o contexto
                     orch.sendResume(player.id).catch(() => { });
                     broadcastOnline(); // atualiza a contagem de online para todos
+                    metrics.authOk++;
                 }
                 catch (err) {
+                    metrics.authFail++; metrics.authFailTimes.push(Date.now());
                     console.error("[auth] token rejeitado:", err?.code || err?.name || err?.message || err);
                     send0(ws, { type: "auth_error", message: "Token inválido." });
                     ws.close();
@@ -391,6 +415,10 @@ export function startServer(opts) {
     const ticker = setInterval(() => {
         orch.tick().catch((e) => console.error("tick error", e));
     }, TICK_MS);
+    // snapshot de métricas a cada 5 min (série temporal p/ observabilidade)
+    const metricsTimer = setInterval(() => {
+        repo.saveMetricsSnapshot?.({ online: onlineCount(), ...orch.stats() }).catch(() => { });
+    }, 5 * 60_000);
     httpServer.listen(port, () => {
         console.log(`[ranked] HTTP+WS ouvindo em :${port} (ws ${WS_PATH})`);
     });
@@ -399,6 +427,7 @@ export function startServer(opts) {
         orch,
         async stop() {
             clearInterval(ticker);
+            clearInterval(metricsTimer);
             wss.close();
             await new Promise<void>((resolve) => httpServer.close(() => resolve()));
         },

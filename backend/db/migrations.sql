@@ -55,3 +55,14 @@ CREATE TABLE IF NOT EXISTS match_decks (
 );
 CREATE INDEX IF NOT EXISTS idx_match_decks_legend ON match_decks (legend_code);
 CREATE INDEX IF NOT EXISTS idx_match_decks_player ON match_decks (player_id);
+
+-- Métricas: série temporal de snapshots (online, fila, partidas) p/ observabilidade.
+CREATE TABLE IF NOT EXISTS metrics_snapshots (
+  id             bigserial   PRIMARY KEY,
+  at             timestamptz NOT NULL DEFAULT now(),
+  online         integer     NOT NULL DEFAULT 0,
+  queued_bo1     integer     NOT NULL DEFAULT 0,
+  queued_bo3     integer     NOT NULL DEFAULT 0,
+  active_matches integer     NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_metrics_at ON metrics_snapshots (at DESC);

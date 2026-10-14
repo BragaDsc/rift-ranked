@@ -403,6 +403,20 @@ export class PgRepository {
             legendCode: r.legend_code, legendName: r.legend_name,
         }));
     }
+    /** Grava um snapshot de métricas (série temporal p/ observabilidade). */
+    async saveMetricsSnapshot(s) {
+        await this.pool.query(`INSERT INTO metrics_snapshots (online, queued_bo1, queued_bo3, active_matches)
+         VALUES ($1,$2,$3,$4)`, [s.online | 0, s.queued?.bo1 | 0, s.queued?.bo3 | 0, s.activeMatches | 0]);
+    }
+    /** Lê os snapshots das últimas N horas (para gráfico/painel). */
+    async recentMetrics(hours = 24) {
+        const { rows } = await this.pool.query(`SELECT extract(epoch from at) * 1000 AS at, online, queued_bo1, queued_bo3, active_matches
+         FROM metrics_snapshots WHERE at >= now() - ($1 * interval '1 hour') ORDER BY at`, [Math.min(Number(hours) || 24, 168)]);
+        return rows.map((r) => ({
+            at: Number(r.at), online: r.online,
+            queued: { bo1: r.queued_bo1, bo3: r.queued_bo3 }, activeMatches: r.active_matches,
+        }));
+    }
     /** Reset de temporada: zera ratings/partidas/filas/conduta. Mantém contas e reputação (likes). */
     async resetSeason() {
         await this.pool.query(`TRUNCATE rating_history, match_decks, matches, player_ratings, queue_entries, conduct_events, player_conduct RESTART IDENTITY CASCADE`);
