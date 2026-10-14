@@ -87,10 +87,26 @@
       </div>
       <div class="spacer"></div>
       <a href="/ranked/legends" style="color:#c8aa6e;text-decoration:none;font-weight:700;font-size:13px;margin-right:14px">🏆 Legends</a>
+      <div class="live" id="rk-live" style="display:none;align-items:center;gap:7px;margin-right:14px;font-size:12.5px;font-weight:700;color:#9fb0c0">
+        <span style="width:7px;height:7px;border-radius:50%;background:#51c15a;box-shadow:0 0 7px rgba(81,193,90,.6)"></span>
+        <span id="rk-live-txt"></span>
+      </div>
       <div class="season" id="season">Temporada 1 · Constructed</div>
       <div class="lang" id="lang"></div>
     </div>
   </div>
+  <script>
+    (function(){
+      var el=document.getElementById("rk-live"), txt=document.getElementById("rk-live-txt");
+      function fmt(s){ var p=[s.online+" online"]; var m=s.activeMatches||0; if(m>0) p.push(m+(m===1?" em partida":" em partidas")); return p.join(" · "); }
+      async function tick(){
+        try{ var r=await fetch("/ranked/api/stats?_="+Date.now()); var s=await r.json();
+          if(typeof s.online==="number"){ txt.textContent=fmt(s); el.style.display="flex"; } }
+        catch(e){ /* silencioso */ }
+      }
+      tick(); setInterval(tick, 20000);
+    })();
+  </script>
 
   <div class="wrap">
     <div class="controls">

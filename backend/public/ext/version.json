@@ -1,5 +1,5 @@
 {
-  "version": "0.3.35",
-  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.35",
-  "notes": "Corrige os botoes de minimizar e configuracoes que ficavam cortados na borda do painel; agora sao chips visiveis."
+  "version": "0.3.36",
+  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.36",
+  "notes": "Reconexao com backoff exponencial e refatoracao interna (modulo de ranks testado). Robustez e observabilidade do servidor melhoradas."
 }

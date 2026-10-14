@@ -1,5 +1,6 @@
 import { S } from "./selectors";
 import * as D from "./detect";
+import * as R from "./ranks";
 /**
  * Content script (mundo ISOLADO). O "piloto":
  *  - recebe identidade/estado do inpage (ponte postMessage);
@@ -205,37 +206,9 @@ import * as D from "./detect";
   function reasonText(r) { return T().reasons[r] || r; }
 
   // ----------------------------- tiers -----------------------------
-  const RK_TIERS: [number, string][] = [
-    [1000, "#9d6b3f"], [1200, "#9aa7b4"], [1400, "#d2a43c"], [1600, "#3f9d9f"],
-    [1800, "#3f9d63"], [2000, "#5a88c4"], [2200, "#8e63c0"], [2350, "#c25049"], [2500, "#caa94f"],
-  ];
-  const TIER_NAMES = {
-    pt: ["Bronze", "Prata", "Ouro", "Platina", "Esmeralda", "Diamante", "Mestre", "Grão-Mestre", "Desafiante"],
-    en: ["Bronze", "Silver", "Gold", "Platinum", "Emerald", "Diamond", "Master", "Grandmaster", "Challenger"],
-    zh: ["黑铁", "白银", "黄金", "铂金", "翡翠", "钻石", "大师", "宗师", "王者"],
-  };
-  const ROMAN = ["IV", "III", "II", "I"];
-  function fullRank(rating) {
-    let i = 0; RK_TIERS.forEach((x, k) => { if (rating >= x[0]) i = k; });
-    const apex = i >= 6, color = RK_TIERS[i][1];
-    if (apex) return { i, name: TIER_NAMES[lang][i], color, apex, division: null, lp: Math.max(0, Math.round(rating - RK_TIERS[i][0])) };
-    const band = (RK_TIERS[i + 1][0] - RK_TIERS[i][0]) / 4;
-    const d = Math.min(3, Math.floor((rating - RK_TIERS[i][0]) / band));
-    const lp = Math.min(100, Math.max(0, Math.round(((rating - RK_TIERS[i][0]) - d * band) / band * 100)));
-    return { i, name: TIER_NAMES[lang][i], color, apex, division: ROMAN[d], lp };
-  }
-  function shade(hex, p) { const n = parseInt(hex.slice(1), 16); let r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255; const t = p < 0 ? 0 : 255, a = Math.abs(p); r = Math.round((t - r) * a + r); g = Math.round((t - g) * a + g); b = Math.round((t - b) * a + b); return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1); }
-  let _g = 0;
-  function emblem(color, mark, apex, size) {
-    size = size || 34; const gray = !color; const c = color || "#4a5663";
-    const id = "e" + _g++;
-    return `<svg width="${size}" height="${size}" viewBox="0 0 40 40" style="display:block;flex:none">
-      <defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${shade(c, .3)}"/><stop offset="1" stop-color="${shade(c, -.45)}"/></linearGradient></defs>
-      <path d="M20 2.5 L35 9.5 V23 C35 31 28 34.5 20 37.5 C12 34.5 5 31 5 23 V9.5 Z" fill="url(#${id})" stroke="${shade(c, .35)}" stroke-width="1.3"/>
-      <path d="M20 2.5 L35 9.5 V15 C28 11.5 12 11.5 5 15 V9.5 Z" fill="#fff" fill-opacity="${gray ? .05 : .13}"/>
-      ${apex ? `<circle cx="20" cy="21" r="4.3" fill="#fff" fill-opacity=".9"/>` : mark ? `<text x="20" y="26" text-anchor="middle" font-size="13" font-weight="800" fill="#10131a" font-family="ui-sans-serif,system-ui,sans-serif">${mark}</text>` : ""}
-    </svg>`;
-  }
+  // Lógica de rank extraída para ./ranks (pura e testada). fullRank recebe o idioma.
+  const fullRank = (rating) => R.fullRank(rating, lang);
+  const emblem = R.emblem;
   function fmtShort(f) { return f === "bo3" ? T().md3 : T().md1; }
 
   // ----------------------------- estado -----------------------------
@@ -306,6 +279,8 @@ import * as D from "./detect";
   }
 
   // -------------------- conexão com o backend --------------------
+  // backoff exponencial de reconexão (3s → 30s); zera ao autenticar com sucesso.
+  let reconnectDelay = 3000;
   async function maybeConnect() {
     if (state.ws || !state.identity) return;
     const token = await getToken();
@@ -315,7 +290,7 @@ import * as D from "./detect";
     ws.addEventListener("open", () =>
       send({ type: "auth", token, displayName: state.identity.username, riftatlasPlrId: state.plrId || undefined }));
     ws.addEventListener("message", (ev) => { let m; try { m = JSON.parse(ev.data); } catch { return; } handleServer(m); });
-    ws.addEventListener("close", () => { state.ws = null; state.authed = false; state.online = null; setStatus(() => T().connecting); updateUI(); setTimeout(maybeConnect, 3000); });
+    ws.addEventListener("close", () => { state.ws = null; state.authed = false; state.online = null; setStatus(() => T().connecting); updateUI(); setTimeout(maybeConnect, reconnectDelay); reconnectDelay = Math.min(reconnectDelay * 2, 30000); });
     ws.addEventListener("error", () => ws.close());
   }
   function send(o) { if (state.ws && state.ws.readyState === WebSocket.OPEN) state.ws.send(JSON.stringify(o)); }
@@ -359,7 +334,7 @@ import * as D from "./detect";
   async function handleServer(msg) {
     switch (msg.type) {
       case "auth_ok":
-        state.authed = true; state.ourPlayerId = msg.playerId;
+        state.authed = true; state.ourPlayerId = msg.playerId; reconnectDelay = 3000;
         for (const r of msg.ratings) state.ratings[r.format] = r;
         setStatus(() => T().ready); refreshProfile(); break;
       case "auth_error": setStatus(() => T().authFail(msg.message)); break;
