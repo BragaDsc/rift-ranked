@@ -53,6 +53,10 @@ cd extension && npx tsc --noEmit && node build.mjs
 - Migrações de banco vão em `backend/db/migrations.sql` como blocos **idempotentes**
   (`CREATE TABLE IF NOT EXISTS …`) — nunca altere schema do servidor na mão.
 
+## Release da extensão
+Antes de publicar uma nova versão, siga o **[checklist de smoke test](docs/SMOKE-TEST.md)**
+(inclui a Definition of Done). É a rede final manual enquanto não há staging.
+
 ## Segurança e segredos
 
 - **Nunca** comite segredos: `.env`, chaves SSH/`.pem`, tokens. O `.gitignore` já cobre isso.
