@@ -87,7 +87,8 @@ import * as R from "./ranks";
       connecting: "Conectando…", stillConnecting: "Ainda conectando…",
       online: (n) => n + (n === 1 ? " jogador online" : " jogadores online"),
       notInLobby: "Vá para a tela inicial (onde aparece “Host Room”) para entrar na fila.",
-      ready: "Pronto.", inGame: "Partida em andamento…", series: (a, b) => "Série " + a + "–" + b, noToken: "Não foi possível obter o token do RiftAtlas.",
+      ready: "Pronto.", inGame: "Partida em andamento…", series: (a, b) => "Série " + a + "–" + b, noToken: "Faça login no RiftAtlas e recarregue (F5).",
+      notLogged: "Não conectado. Faça login no RiftAtlas e recarregue (F5).",
       sounds: "Sons", sndMatch: "Encontrar partida", sndWin: "Vitória", sndLoss: "Derrota",
       matchOver: "Fim da partida", whoWon: "Quem venceu?", youWonOpt: "Você", confirmBtn: "Confirmar",
       rateOpp: "Avalie o oponente", like: "Curtir", dislike: "Não curtir",
@@ -96,7 +97,7 @@ import * as R from "./ranks";
       selectorWarn: "A interface do RiftAtlas pode ter mudado — talvez seja preciso atualizar a extensão.",
       concede: "Desistir", concedeConfirm: "Desistir mesmo?", yes: "Sim", no: "Não",
       oppLeft: "Oponente saiu/desconectou da partida",
-      oppWait: (n) => "Oponente caiu — " + n + "s para voltar…",
+      oppWait: (name, n) => (name || "Oponente") + " caiu — " + n + "s para voltar…",
       authFail: (m) => "Falha na autenticação: " + m,
       queued: (f) => `Na fila (${f})…`, dequeued: "Fora da fila.",
       foundHost: (n, r) => `Partida encontrada vs ${n} (${r}) — você hospeda`,
@@ -126,7 +127,8 @@ import * as R from "./ranks";
       connecting: "Connecting…", stillConnecting: "Still connecting…",
       online: (n) => n + (n === 1 ? " player online" : " players online"),
       notInLobby: "Go to the home screen (where “Host Room” is) to join the queue.",
-      ready: "Ready.", inGame: "Match in progress…", series: (a, b) => "Series " + a + "–" + b, noToken: "Couldn't get the RiftAtlas token.",
+      ready: "Ready.", inGame: "Match in progress…", series: (a, b) => "Series " + a + "–" + b, noToken: "Log in to RiftAtlas and reload (F5).",
+      notLogged: "Not connected. Log in to RiftAtlas and reload (F5).",
       sounds: "Sounds", sndMatch: "Match found", sndWin: "Victory", sndLoss: "Defeat",
       matchOver: "Match over", whoWon: "Who won?", youWonOpt: "You", confirmBtn: "Confirm",
       rateOpp: "Rate your opponent", like: "Like", dislike: "Dislike",
@@ -135,7 +137,7 @@ import * as R from "./ranks";
       selectorWarn: "RiftAtlas's UI may have changed — the extension might need an update.",
       concede: "Concede", concedeConfirm: "Really concede?", yes: "Yes", no: "No",
       oppLeft: "Opponent left/disconnected",
-      oppWait: (n) => "Opponent dropped — " + n + "s to return…",
+      oppWait: (name, n) => (name || "Opponent") + " dropped — " + n + "s to return…",
       authFail: (m) => "Authentication failed: " + m,
       queued: (f) => `In queue (${f})…`, dequeued: "Left the queue.",
       foundHost: (n, r) => `Match found vs ${n} (${r}) — you host`,
@@ -165,7 +167,8 @@ import * as R from "./ranks";
       connecting: "连接中…", stillConnecting: "仍在连接…",
       online: (n) => n + " 人在线",
       notInLobby: "请回到主界面（显示“Host Room”的页面）再加入队列。",
-      ready: "就绪。", inGame: "对局进行中…", series: (a, b) => "系列赛 " + a + "–" + b, noToken: "无法获取 RiftAtlas 令牌。",
+      ready: "就绪。", inGame: "对局进行中…", series: (a, b) => "系列赛 " + a + "–" + b, noToken: "请登录 RiftAtlas 并刷新（F5）。",
+      notLogged: "未连接。请登录 RiftAtlas 并刷新（F5）。",
       sounds: "音效", sndMatch: "匹配成功", sndWin: "胜利", sndLoss: "失败",
       matchOver: "对局结束", whoWon: "谁赢了？", youWonOpt: "你", confirmBtn: "确认",
       rateOpp: "评价对手", like: "点赞", dislike: "点踩",
@@ -174,7 +177,7 @@ import * as R from "./ranks";
       selectorWarn: "RiftAtlas 界面可能已变化 — 扩展可能需要更新。",
       concede: "认输", concedeConfirm: "确定认输？", yes: "是", no: "否",
       oppLeft: "对手已离开/掉线",
-      oppWait: (n) => "对手掉线——" + n + "秒内可重连…",
+      oppWait: (name, n) => (name || "对手") + "掉线——" + n + "秒内可重连…",
       authFail: (m) => "认证失败：" + m,
       queued: (f) => `匹配中（${f}）…`, dequeued: "已离开队列。",
       foundHost: (n, r) => `匹配成功 vs ${n}（${r}）— 由你创建房间`,
@@ -223,6 +226,8 @@ import * as R from "./ranks";
     oppGoneAt: 0,       // quando o oponente caiu (ms) — base do cronômetro de reconexão
     online: null,       // jogadores online agora (do backend) — null = desconhecido
     concedeArm: false,  // botão desistir "armado" (aguardando confirmação)
+    queuedAt: 0,        // quando entrou na fila (ms) — base do cronômetro de fila
+    statusKind: null,   // estado do status p/ cor/ícone (override; senão é inferido)
     statusKey: () => T().connecting,
   };
   // janela de reconexão do oponente (1 min); espelha reconnectGraceMs do backend.
@@ -230,7 +235,20 @@ import * as R from "./ranks";
   let oppGoneTimer = null;
   function startOppGoneTimer() { stopOppGoneTimer(); oppGoneTimer = setInterval(updateUI, 1000); }
   function stopOppGoneTimer() { if (oppGoneTimer) { clearInterval(oppGoneTimer); oppGoneTimer = null; } }
-  function setStatus(fn) { state.statusKey = typeof fn === "function" ? fn : () => fn; updateUI(); }
+  // cronômetro de fila (atualiza o "na fila: M:SS" a cada segundo)
+  let queueTimer = null;
+  function startQueueTimer() { stopQueueTimer(); queueTimer = setInterval(updateUI, 1000); }
+  function stopQueueTimer() { if (queueTimer) { clearInterval(queueTimer); queueTimer = null; } }
+  function mmss(ms) { const s = Math.max(0, Math.floor(ms / 1000)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
+  function setStatus(fn, kind?) { state.statusKey = typeof fn === "function" ? fn : () => fn; state.statusKind = kind || null; updateUI(); }
+  // cor/ícone do status: usa o override (erros) ou infere do contexto.
+  function statusKind() {
+    if (state.statusKind) return state.statusKind;
+    if (!state.authed) return "connecting";
+    if (state.match) return "ingame";
+    if (state.queued) return "queued";
+    return "ready";
+  }
 
   // -------------------- ponte com o inpage (MAIN) --------------------
   const tokenWaiters = new Map();
@@ -284,13 +302,13 @@ import * as R from "./ranks";
   async function maybeConnect() {
     if (state.ws || !state.identity) return;
     const token = await getToken();
-    if (!token) { setStatus(() => T().noToken); return; }
+    if (!token) { setStatus(() => T().noToken, "error"); return; }
     const ws = new WebSocket(backendWs());
     state.ws = ws;
     ws.addEventListener("open", () =>
       send({ type: "auth", token, displayName: state.identity.username, riftatlasPlrId: state.plrId || undefined }));
     ws.addEventListener("message", (ev) => { let m; try { m = JSON.parse(ev.data); } catch { return; } handleServer(m); });
-    ws.addEventListener("close", () => { state.ws = null; state.authed = false; state.online = null; setStatus(() => T().connecting); updateUI(); setTimeout(maybeConnect, reconnectDelay); reconnectDelay = Math.min(reconnectDelay * 2, 30000); });
+    ws.addEventListener("close", () => { state.ws = null; state.authed = false; state.online = null; state.queued = null; state.queuedAt = 0; stopQueueTimer(); setStatus(() => T().connecting); updateUI(); setTimeout(maybeConnect, reconnectDelay); reconnectDelay = Math.min(reconnectDelay * 2, 30000); });
     ws.addEventListener("error", () => ws.close());
   }
   function send(o) { if (state.ws && state.ws.readyState === WebSocket.OPEN) state.ws.send(JSON.stringify(o)); }
@@ -337,12 +355,12 @@ import * as R from "./ranks";
         state.authed = true; state.ourPlayerId = msg.playerId; reconnectDelay = 3000;
         for (const r of msg.ratings) state.ratings[r.format] = r;
         setStatus(() => T().ready); refreshProfile(); break;
-      case "auth_error": setStatus(() => T().authFail(msg.message)); break;
+      case "auth_error": setStatus(() => T().authFail(msg.message), "error"); break;
       case "online_count": state.online = typeof msg.count === "number" ? msg.count : null; updateUI(); break;
-      case "queued": { const f = msg.format; state.queued = f; setStatus(() => T().queued(fmtShort(f))); break; }
-      case "dequeued": state.queued = null; setStatus(() => T().dequeued); break;
+      case "queued": { const f = msg.format; state.queued = f; state.queuedAt = Date.now(); startQueueTimer(); setStatus(() => T().queued(fmtShort(f)) + " · " + mmss(Date.now() - state.queuedAt)); break; }
+      case "dequeued": state.queued = null; state.queuedAt = 0; stopQueueTimer(); setStatus(() => T().dequeued); break;
       case "match_found":
-        state.queued = null; state.lastResult = null; state.oppGone = false; state.oppGoneAt = 0; state.concedeArm = false; stopOppGoneTimer();
+        state.queued = null; state.queuedAt = 0; stopQueueTimer(); state.lastResult = null; state.oppGone = false; state.oppGoneAt = 0; state.concedeArm = false; stopOppGoneTimer();
         closeConfirm(); // limpa qualquer janela de confirmação pendente de uma partida anterior
         state.match = { matchId: msg.matchId, format: msg.format, side: msg.side, startedSent: false, confirmShown: false, oppName: msg.opponent?.displayName || "Oponente" };
         { const o = msg.opponent; setStatus(() => (msg.side === "host" ? T().foundHost : T().foundGuest)(o.displayName, Math.round(o.rating))); }
@@ -402,7 +420,7 @@ import * as R from "./ranks";
       case "grief_warning": state.griefWarning = { matchId: msg.matchId }; setStatus(() => T().griefAccused); break;
       case "grief_cleared": state.griefWarning = null; break;
       case "queue_blocked": { const until = new Date(msg.until); setStatus(() => T().banned(until)); break; }
-      case "error": { const m = msg; setStatus(() => T().error(m.message)); break; }
+      case "error": { const m = msg; setStatus(() => T().error(m.message), "error"); break; }
     }
     updateUI();
   }
@@ -726,7 +744,8 @@ import * as R from "./ranks";
         #ranked-overlay{position:fixed;right:18px;bottom:18px;z-index:2147483000;width:320px;
           font:13px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:#e7ecf4;
           background:linear-gradient(180deg,#0e1a2e,#080d18);border:1px solid rgba(200,170,110,.22);border-radius:16px;
-          box-shadow:0 28px 70px -28px rgba(0,0,0,.92),0 2px 8px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.04);overflow:hidden}
+          box-shadow:0 28px 70px -28px rgba(0,0,0,.92),0 2px 8px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.04);overflow:hidden;animation:rk-in .22s ease both}
+        @keyframes rk-in{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
         #ranked-overlay::before{content:"";position:absolute;inset:0 0 auto 0;height:1px;z-index:2;
           background:linear-gradient(90deg,transparent,rgba(232,207,148,.8),transparent);pointer-events:none}
         #ranked-overlay::after{content:"";position:absolute;left:-40%;top:-60%;width:180%;height:150%;pointer-events:none;
@@ -734,7 +753,7 @@ import * as R from "./ranks";
         #ranked-overlay.dragging{opacity:.96}
         #ranked-overlay .hd{position:relative;z-index:1;display:flex;align-items:center;gap:9px;padding:12px;cursor:move;user-select:none;
           background:linear-gradient(180deg,rgba(200,170,110,.08),transparent);border-bottom:1px solid rgba(200,170,110,.12)}
-        #ranked-overlay .hd .mk{width:32px;height:32px;display:grid;place-items:center;flex:none;border-radius:9px;
+        #ranked-overlay .hd .mk{position:relative;width:32px;height:32px;display:grid;place-items:center;flex:none;border-radius:9px;
           background:linear-gradient(160deg,rgba(232,207,148,.28),rgba(160,123,56,.06));
           border:1px solid rgba(200,170,110,.35);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 2px 6px rgba(0,0,0,.3)}
         #ranked-overlay .hd .wm{line-height:1}
@@ -779,7 +798,27 @@ import * as R from "./ranks";
         #ranked-overlay .cancel{width:100%;margin-top:9px;cursor:pointer;border:1px solid rgba(192,97,93,.35);background:rgba(60,25,28,.3);color:#e0a3a0;border-radius:9px;padding:8px 0;font-weight:700;font-size:11.5px;display:none;transition:.14s}
         #ranked-overlay .cancel:hover{background:rgba(80,30,34,.45)}
         #ranked-overlay .cancel.show{display:block}
-        #ranked-overlay .status{margin-top:13px;font-size:12px;color:#c2cbd8;min-height:18px;background:rgba(0,0,0,.28);border-radius:9px;padding:10px 12px;border:1px solid rgba(255,255,255,.05);border-left:3px solid rgba(200,170,110,.55)}
+        #ranked-overlay .status{margin-top:13px;display:flex;align-items:center;gap:9px;font-size:12px;color:#c2cbd8;min-height:18px;background:rgba(0,0,0,.28);border-radius:9px;padding:10px 12px;border:1px solid rgba(255,255,255,.05);border-left:3px solid rgba(200,170,110,.55)}
+        #ranked-overlay .status .sdot{width:8px;height:8px;border-radius:50%;flex:none;background:#8b94a3}
+        #ranked-overlay .status .stx{flex:1;min-width:0}
+        #ranked-overlay .status.s-ready{border-left-color:#5fd36a}
+        #ranked-overlay .status.s-ready .sdot{background:#5fd36a;box-shadow:0 0 7px rgba(95,211,106,.6)}
+        #ranked-overlay .status.s-connecting{border-left-color:#e4c877}
+        #ranked-overlay .status.s-connecting .sdot{background:#e4c877;animation:rk-pulse 1.5s infinite}
+        #ranked-overlay .status.s-queued{border-left-color:#e4c877}
+        #ranked-overlay .status.s-queued .sdot{background:#e4c877;box-shadow:0 0 7px rgba(228,200,119,.5)}
+        #ranked-overlay .status.s-ingame{border-left-color:#5a88c4}
+        #ranked-overlay .status.s-ingame .sdot{background:#5a88c4;box-shadow:0 0 7px rgba(90,136,196,.6)}
+        #ranked-overlay .status.s-error{border-left-color:#d1706c}
+        #ranked-overlay .status.s-error .sdot{background:#d1706c;box-shadow:0 0 7px rgba(209,112,108,.6)}
+        #ranked-overlay .hd-dot{display:none}
+        #ranked-overlay.min .hd-dot{display:block;position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;border:2px solid #0b1424;background:#8b94a3}
+        #ranked-overlay.min .hd-dot.s-ready{background:#5fd36a}
+        #ranked-overlay.min .hd-dot.s-connecting{background:#e4c877;animation:rk-pulse 1.5s infinite}
+        #ranked-overlay.min .hd-dot.s-queued{background:#e4c877}
+        #ranked-overlay.min .hd-dot.s-ingame{background:#5a88c4}
+        #ranked-overlay.min .hd-dot.s-error{background:#d1706c}
+        @media (prefers-reduced-motion: reduce){ #ranked-overlay *,#ranked-overlay *::before,#ranked-overlay *::after{animation:none!important;transition:none!important} }
         #ranked-overlay .online{display:none;align-items:center;gap:8px;margin-top:9px;font-size:11.5px;font-weight:700;color:#9fb0c0}
         #ranked-overlay .rk-dot{width:7px;height:7px;border-radius:50%;background:#51c15a;box-shadow:0 0 0 0 rgba(81,193,90,.6);animation:rk-pulse 2s infinite}
         @keyframes rk-pulse{0%{box-shadow:0 0 0 0 rgba(81,193,90,.5)}70%{box-shadow:0 0 0 5px rgba(81,193,90,0)}100%{box-shadow:0 0 0 0 rgba(81,193,90,0)}}
@@ -829,7 +868,7 @@ import * as R from "./ranks";
         #ranked-overlay .st-row.on .sw::after{left:16px;background:#1a1300}
       </style>
       <div class="hd">
-        <div class="mk"><svg width="19" height="19" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="rkmk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f0d89a"/><stop offset="1" stop-color="#b5873a"/></linearGradient></defs><path d="M12 1.6l9 5.2v10.4L12 22.4 3 17.2V6.8L12 1.6z" fill="url(#rkmk)" stroke="#f0d89a" stroke-width="1" stroke-linejoin="round"/></svg></div>
+        <div class="mk"><svg width="19" height="19" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="rkmk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f0d89a"/><stop offset="1" stop-color="#b5873a"/></linearGradient></defs><path d="M12 1.6l9 5.2v10.4L12 22.4 3 17.2V6.8L12 1.6z" fill="url(#rkmk)" stroke="#f0d89a" stroke-width="1" stroke-linejoin="round"/></svg><span class="hd-dot" id="rk-hdot"></span></div>
         <div class="wm"><div class="a">${t.brandTop}</div><div class="b">${t.brandBottom} <span class="ver">v${extVersion()}</span></div></div>
         <div class="sp"></div>
         <div class="lang">
@@ -1011,7 +1050,13 @@ import * as R from "./ranks";
     if (!ui) return;
     fmtCard(ui.querySelector("#fc-bo1"), "bo1", T().md1);
     fmtCard(ui.querySelector("#fc-bo3"), "bo3", T().md3);
-    ui.querySelector("#rk-status").textContent = state.statusKey();
+    // status com ponto + cor por estado (conectando/pronto/na fila/em partida/erro)
+    const kind = statusKind();
+    const stEl = ui.querySelector("#rk-status");
+    stEl.className = "status s-" + kind;
+    stEl.innerHTML = `<span class="sdot"></span><span class="stx">${esc(state.statusKey())}</span>`;
+    const hdot = ui.querySelector("#rk-hdot"); // ponto no header (visível quando minimizado)
+    if (hdot) hdot.className = "hd-dot s-" + kind;
     // contador de jogadores online (do backend); some quando desconhecido/desconectado
     const onEl = ui.querySelector("#rk-online");
     if (onEl) {
@@ -1037,7 +1082,7 @@ import * as R from "./ranks";
       // depois libera a reivindicação de vitória (o backend também dá o W.O.).
       const left = Math.ceil((OPP_GRACE_MS - (Date.now() - (state.oppGoneAt || 0))) / 1000);
       act.innerHTML = left > 0
-        ? `<div class="opp-gone wait">⏳ ${T().oppWait(left)}</div>`
+        ? `<div class="opp-gone wait">⏳ ${esc(T().oppWait(state.match.oppName, left))}</div>`
         : `<div class="opp-gone">⚠ ${T().oppLeft}</div><button class="act claim">${T().claimWin}</button>`;
     }
     else act.innerHTML = "";
@@ -1063,6 +1108,8 @@ import * as R from "./ranks";
     if (!document.body) return setTimeout(boot, 200);
     buildUI(); updateUI(); checkUpdate();
     setInterval(checkUpdate, 15 * 60 * 1000); // reconfere atualização a cada 15 min
+    // dica acionável: se não autenticou em ~10s, provavelmente falta login no RiftAtlas
+    setTimeout(() => { if (!state.authed && !state.match) setStatus(() => T().notLogged, "error"); }, 10000);
   }
   boot();
 

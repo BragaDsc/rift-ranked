@@ -1,5 +1,5 @@
 {
-  "version": "0.3.36",
-  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.36",
-  "notes": "Reconexao com backoff exponencial e refatoracao interna (modulo de ranks testado). Robustez e observabilidade do servidor melhoradas."
+  "version": "0.3.37",
+  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.37",
+  "notes": "UX do painel: cronometro de fila, status com cor/icone por estado (conectando/pronto/na fila/em partida/erro), erros acionaveis (faca login no RiftAtlas), ponto de status no minimizado, nome do oponente na reconexao, animacao de entrada e suporte a prefers-reduced-motion."
 }
