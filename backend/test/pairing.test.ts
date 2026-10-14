@@ -30,6 +30,16 @@ describe("pairing", () => {
     expect(pairs).toHaveLength(0);
   });
 
+  it("pool pequeno: após o prazo, pareia mesmo com gap grande", () => {
+    const now = 100_000;
+    const entries = [
+      { playerId: "a", rating: 1000, enqueuedAt: now - 50_000 }, // esperou 50s (> 40)
+      { playerId: "b", rating: 2000, enqueuedAt: now },          // acabou de chegar
+    ];
+    const { pairs } = findMatches(entries, now);
+    expect(pairs).toHaveLength(1); // gap 1000, mas um deles passou do prazo → pareia
+  });
+
   it("host = quem esperou mais", () => {
     const now = 100_000;
     const entries = [
