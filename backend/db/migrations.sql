@@ -66,3 +66,6 @@ CREATE TABLE IF NOT EXISTS metrics_snapshots (
   active_matches integer     NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_metrics_at ON metrics_snapshots (at DESC);
+
+-- Índice para o histórico de partidas do jogador (ORDER BY ended_at).
+CREATE INDEX IF NOT EXISTS idx_matches_ended ON matches (ended_at DESC);

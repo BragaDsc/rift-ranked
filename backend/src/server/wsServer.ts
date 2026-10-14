@@ -55,6 +55,13 @@ try {
 catch {
     /* zip não embarcado */
 }
+let OG_IMG = null;
+try {
+    OG_IMG = readFileSync(new URL("../../public/og.png", import.meta.url));
+}
+catch {
+    /* imagem de divulgação ausente */
+}
 export function startServer(opts) {
     const { repo, port } = opts;
     const connsByPlayer = new Map();
@@ -197,6 +204,14 @@ export function startServer(opts) {
             }
             if (req.method === "GET" && url.pathname === "/ranked/api/health") {
                 res.end(JSON.stringify({ ok: true }));
+                return;
+            }
+            // imagem de divulgação (Open Graph / Twitter Card)
+            if (req.method === "GET" && url.pathname === "/ranked/og.png") {
+                if (!OG_IMG) { res.statusCode = 404; res.end(JSON.stringify({ error: "not found" })); return; }
+                res.setHeader("Content-Type", "image/png");
+                res.setHeader("Cache-Control", "public, max-age=86400");
+                res.end(OG_IMG);
                 return;
             }
             // jogadores online agora (conexões autenticadas)
@@ -437,9 +452,11 @@ export function startServer(opts) {
         orch.tick().catch((e) => console.error("tick error", e));
     }, TICK_MS);
     // snapshot de métricas + verificação de saúde da auth a cada 5 min
+    let lastPrune = 0;
     const metricsTimer = setInterval(() => {
         repo.saveMetricsSnapshot?.({ online: onlineCount(), ...orch.stats() }).catch(() => { });
         checkAuthHealth();
+        if (Date.now() - lastPrune > 86_400_000) { lastPrune = Date.now(); repo.pruneMetrics?.(90).catch(() => { }); }
     }, 5 * 60_000);
     httpServer.listen(port, () => {
         console.log(`[ranked] HTTP+WS ouvindo em :${port} (ws ${WS_PATH})`);

@@ -417,6 +417,10 @@ export class PgRepository {
             queued: { bo1: r.queued_bo1, bo3: r.queued_bo3 }, activeMatches: r.active_matches,
         }));
     }
+    /** Remove snapshots de métricas antigos (retenção) para a tabela não crescer sem limite. */
+    async pruneMetrics(days = 90) {
+        await this.pool.query(`DELETE FROM metrics_snapshots WHERE at < now() - ($1 * interval '1 day')`, [Math.max(1, Number(days) || 90)]);
+    }
     /** Reset de temporada: zera ratings/partidas/filas/conduta. Mantém contas e reputação (likes). */
     async resetSeason() {
         await this.pool.query(`TRUNCATE rating_history, match_decks, matches, player_ratings, queue_entries, conduct_events, player_conduct RESTART IDENTITY CASCADE`);
