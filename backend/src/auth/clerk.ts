@@ -16,6 +16,10 @@ const JWKS_URL = process.env.CLERK_JWKS_URL ?? "https://clerk.riftatlas.com/.wel
 const ISSUER = process.env.CLERK_ISSUER ?? "https://clerk.riftatlas.com";
 /** Bypass para desenvolvimento local: trata o "token" como o próprio clerkUserId. */
 const AUTH_DISABLED = process.env.AUTH_DISABLED === "1";
+// Alerta se a autenticação estiver desligada com banco de produção conectado.
+if (AUTH_DISABLED && process.env.DATABASE_URL) {
+    console.error("[ranked] ⚠️  ATENÇÃO: AUTH_DISABLED=1 COM DATABASE_URL — autenticação DESLIGADA em produção!");
+}
 const jwks = createRemoteJWKSet(new URL(JWKS_URL));
 export async function verifyClerkToken(token) {
     if (AUTH_DISABLED) {

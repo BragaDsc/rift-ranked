@@ -14,6 +14,14 @@ const repo = process.env.DATABASE_URL
     : new InMemoryRepository();
 console.log(`[ranked] repositório: ${process.env.DATABASE_URL ? "PostgreSQL" : "memória"}`);
 const server = startServer({ repo, port });
+// Rede de segurança: um erro isolado (ex.: handler de 1 mensagem) não deve
+// derrubar o processo inteiro. Logamos e seguimos; o pm2 reinicia só em caso grave.
+process.on("unhandledRejection", (reason) => {
+    console.error("[ranked] unhandledRejection:", reason);
+});
+process.on("uncaughtException", (err) => {
+    console.error("[ranked] uncaughtException:", err);
+});
 function shutdown(signal) {
     console.log(`\n[ranked] recebido ${signal}, encerrando...`);
     server.stop().then(() => process.exit(0));

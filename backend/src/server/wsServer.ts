@@ -175,6 +175,12 @@ export function startServer(opts) {
                 res.end(JSON.stringify({ count: onlineCount() }));
                 return;
             }
+            // métricas gerais (observabilidade): online, partidas ativas, filas
+            if (req.method === "GET" && url.pathname === "/ranked/api/stats") {
+                res.setHeader("Cache-Control", "no-store, must-revalidate");
+                res.end(JSON.stringify({ online: onlineCount(), ...orch.stats() }));
+                return;
+            }
             // versão da extensão (notificador de atualização)
             if (req.method === "GET" && url.pathname === "/ranked/api/ext-version") {
                 res.setHeader("Cache-Control", "no-store, must-revalidate");
@@ -294,15 +300,26 @@ export function startServer(opts) {
     // -------------------- WebSocket --------------------
     const wss = new WebSocketServer({ server: httpServer, path: WS_PATH });
     wss.on("connection", (ws) => {
-        const conn: { ws: WebSocket; playerId?: string } = { ws };
+        const conn: { ws: WebSocket; playerId?: string; winStart?: number; winCount?: number } = { ws };
         ws.on("message", async (data) => {
+            // cap de tamanho: nenhuma mensagem legítima passa disso (deck_report é o maior)
+            const raw = data.toString();
+            if (raw.length > 32768)
+                return send0(ws, { type: "error", message: "Mensagem grande demais." });
+            // rate-limit simples por conexão: no máx. ~40 msgs/seg (descarta o excedente)
+            const now = Date.now();
+            if (!conn.winStart || now - conn.winStart >= 1000) { conn.winStart = now; conn.winCount = 0; }
+            if ((conn.winCount = (conn.winCount ?? 0) + 1) > 40)
+                return;
             let msg: any;
             try {
-                msg = JSON.parse(data.toString());
+                msg = JSON.parse(raw);
             }
             catch {
                 return send0(ws, { type: "error", message: "JSON inválido." });
             }
+            if (!msg || typeof msg.type !== "string")
+                return send0(ws, { type: "error", message: "Mensagem inválida." });
             // Antes de autenticar, só 'auth' é aceito.
             if (!conn.playerId) {
                 if (msg.type !== "auth") {
@@ -334,7 +351,13 @@ export function startServer(opts) {
                 }
                 return;
             }
-            await route(orch, conn.playerId, msg);
+            try {
+                await route(orch, conn.playerId, msg);
+            }
+            catch (err) {
+                console.error("[ranked] erro ao processar mensagem:", msg?.type, err);
+                send0(ws, { type: "error", message: "Erro ao processar a mensagem." });
+            }
         });
         ws.on("close", () => {
             if (conn.playerId) {
@@ -380,29 +403,43 @@ async function ratingsView(repo, playerId) {
     }
     return out;
 }
+const isFmt = (f: any): boolean => f === "bo1" || f === "bo3";
+const isId = (s: any): boolean => typeof s === "string" && s.length > 0 && s.length <= 128;
+const isNum = (n: any): boolean => typeof n === "number" && Number.isFinite(n) && n >= 0 && n <= 999;
 async function route(orch, playerId, msg) {
     switch (msg.type) {
         case "enqueue":
+            if (!isFmt(msg.format)) return;
             return orch.onEnqueue(playerId, msg.format);
         case "dequeue":
+            if (!isFmt(msg.format)) return;
             return orch.onDequeue(playerId, msg.format);
         case "heartbeat":
             return orch.onHeartbeat(playerId);
         case "room_code":
+            if (!isId(msg.matchId) || !isId(msg.roomCode)) return;
             return orch.onRoomCode(playerId, msg.matchId, msg.roomCode);
         case "game_started":
+            if (!isId(msg.matchId)) return;
             return orch.onGameStarted(playerId, msg.matchId);
         case "game_score":
+            if (!isId(msg.matchId) || !isNum(msg.host) || !isNum(msg.joiner)) return;
             return orch.onGameScore(playerId, msg.matchId, msg.host, msg.joiner);
         case "report":
+            if (!isId(msg.matchId)) return;
             return orch.onReport(playerId, msg.matchId, msg.outcome);
         case "confirm_result":
+            if (!isId(msg.matchId) || (msg.winner !== "me" && msg.winner !== "opp")) return;
+            if (msg.rate != null && msg.rate !== "like" && msg.rate !== "dislike") return;
             return orch.onConfirmResult(playerId, msg.matchId, msg.winner, msg.rate);
         case "deck_report":
+            if (!isId(msg.matchId)) return;
             return orch.onDeckReport(playerId, msg);
         case "report_grief":
+            if (!isId(msg.matchId)) return;
             return orch.onReportGrief(playerId, msg.matchId);
         case "contest_grief":
+            if (!isId(msg.matchId)) return;
             return orch.onContestGrief(playerId, msg.matchId);
         case "auth":
             return; // já autenticado

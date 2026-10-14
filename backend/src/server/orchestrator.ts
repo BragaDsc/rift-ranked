@@ -56,7 +56,6 @@ export class Orchestrator {
     deadlines = new Map();
     /** Reivindicações de vitória por inatividade/grief pendentes. */
     griefClaims = new Map();
-    matchSeq = 0;
     constructor(repo, send, cfg = DEFAULT_CONFIG, now = () => Date.now()) {
         this.repo = repo;
         this.send = send;
@@ -132,6 +131,11 @@ export class Orchestrator {
     }
     // ----------------------------- fila -----------------------------
     async onEnqueue(playerId, format) {
+        const q = this.queues.get(format);
+        if (!q) {
+            this.send(playerId, { type: "error", message: "Formato inválido." });
+            return;
+        }
         if (this.playerMatch.has(playerId)) {
             this.send(playerId, { type: "error", message: "Você já está em uma partida." });
             return;
@@ -147,7 +151,6 @@ export class Orchestrator {
             return;
         }
         const rating = await this.repo.getRating(playerId, format);
-        const q = this.queues.get(format);
         q.set(playerId, { playerId, rating: rating.rating, enqueuedAt: this.now() });
         this.send(playerId, { type: "queued", format });
     }
@@ -421,6 +424,13 @@ export class Orchestrator {
         }
         this.cleanup(m.id);
     }
+    /** Métricas leves pra observabilidade (endpoint /api/stats). */
+    stats() {
+        const queued = {};
+        for (const [f, q] of this.queues)
+            queued[f] = q.size;
+        return { activeMatches: this.matches.size, queued };
+    }
     // ----------------------------- tick -----------------------------
     /** Chamado periodicamente (ex.: a cada 1s) pela camada de transporte. */
     async tick(now = this.now()) {
@@ -478,6 +488,18 @@ export class Orchestrator {
             const winnerId = this.authSeriesWinnerId(mid, m) ?? present;
             if (winnerId != null)
                 await this.finalizeConfirmed(m, winnerId, "score");
+        }
+        // 5) poda presença obsoleta: desconectados há muito, fora de fila/partida.
+        // Sem isso o mapa de presença cresceria para sempre (cada jogador único).
+        const PRESENCE_TTL = 30 * 60_000;
+        for (const [pid, p] of this.presence) {
+            if (p.connected || now - (p.lastHeartbeat ?? 0) < PRESENCE_TTL || this.playerMatch.has(pid))
+                continue;
+            let inQueue = false;
+            for (const q of this.queues.values())
+                if (q.has(pid)) { inQueue = true; break; }
+            if (!inQueue)
+                this.presence.delete(pid);
         }
     }
     /** Resolve a partida por W.O. e aplica um strike de grief ao faltante. */
@@ -636,6 +658,9 @@ export class Orchestrator {
         this.confirmations.delete(matchId);
         this.confirmDeadlines.delete(matchId);
         this.scoreWatch.delete(matchId);
+        // a partida já foi persistida; remover da memória evita o mapa crescer para
+        // sempre (e o tick percorre matches a cada ciclo).
+        this.matches.delete(matchId);
     }
     graceExpired(m) {
         const grace = this.cfg.reconnectGraceMs;

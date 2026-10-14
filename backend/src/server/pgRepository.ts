@@ -221,7 +221,8 @@ export class PgRepository {
         WHERE player_id = $1 AND created_at >= now() - interval '30 days'`, [playerId]);
         const active = Number(ar[0].n);
         const pen = penaltyFor(active);
-        const banExpr = pen.banMs > 0 ? `now() + interval '${pen.banMs} milliseconds'` : "NULL";
+        // ban parametrizado ($5 = ms): evita interpolar valor na SQL
+        const banExpr = `CASE WHEN $5 > 0 THEN now() + ($5 * interval '1 millisecond') ELSE NULL END`;
         const { rows } = await this.pool.query(`INSERT INTO player_conduct
          (player_id, strikes, active_strikes, last_strike_at, disputes, griefs, banned_until, updated_at)
        VALUES ($1, 1, $2, now(), $3, $4, ${banExpr}, now())
@@ -233,7 +234,7 @@ export class PgRepository {
          griefs = player_conduct.griefs + $4,
          banned_until = ${banExpr},
          updated_at = now()
-       RETURNING strikes, disputes, griefs, EXTRACT(EPOCH FROM banned_until) * 1000 AS banned`, [playerId, active, kind === "dispute" ? 1 : 0, kind === "grief" ? 1 : 0]);
+       RETURNING strikes, disputes, griefs, EXTRACT(EPOCH FROM banned_until) * 1000 AS banned`, [playerId, active, kind === "dispute" ? 1 : 0, kind === "grief" ? 1 : 0, pen.banMs]);
         const c = rows[0];
         return {
             playerId,

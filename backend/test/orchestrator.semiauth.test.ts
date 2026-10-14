@@ -40,7 +40,7 @@ describe("orchestrator — placar semi-autoritativo (#7)", () => {
     expect(rh).toBeTruthy();
     expect(rh.youWon).toBe(true);   // host venceu, conforme o placar corroborado
     expect(rj.youWon).toBe(false);
-    expect((orch as any).matches.get("M").state).toBe("RATED");
+    expect((orch as any).matches.has("M")).toBe(false); // resolvida e removida da memória
   });
 
   it("um cliente sozinho forjando placar NÃO vira verdade (sem corroboração → cai na confirmação)", async () => {
@@ -80,7 +80,7 @@ describe("orchestrator — placar semi-autoritativo (#7)", () => {
     await orch.onConfirmResult(h, "M", "me", null);
     await orch.onConfirmResult(j, "M", "opp", null); // joiner concorda: host venceu
     expect(resolvedFor(sent, h).youWon).toBe(true);
-    expect((orch as any).matches.get("M").state).toBe("RATED");
+    expect((orch as any).matches.has("M")).toBe(false); // resolvida e removida da memória
   });
 
   it("oponente voltou mas NÃO confirma: o prazo (tick) resolve com o placar corroborado", async () => {
@@ -107,7 +107,7 @@ describe("orchestrator — placar semi-autoritativo (#7)", () => {
     clock += (DEFAULT_CONFIG.confirmTimeoutMs ?? 30000) + 1;
     await (orch as any).tick();
     expect(resolvedFor(sent, h.id).youWon).toBe(true);
-    expect((orch as any).matches.get("M").state).toBe("RATED");
+    expect((orch as any).matches.has("M")).toBe(false); // resolvida e removida da memória
   });
 
   it("oponente desconectou (desistiu/saiu): a confirmação de quem ficou resolve na hora", async () => {
@@ -117,6 +117,6 @@ describe("orchestrator — placar semi-autoritativo (#7)", () => {
     orch.onDisconnected(j);          // oponente saiu da partida
     await orch.onConfirmResult(h, "M", "me", null); // host confirma; não há quem confirmar do outro lado
     expect(resolvedFor(sent, h).youWon).toBe(true);
-    expect((orch as any).matches.get("M").state).toBe("RATED");
+    expect((orch as any).matches.has("M")).toBe(false); // resolvida e removida da memória
   });
 });
