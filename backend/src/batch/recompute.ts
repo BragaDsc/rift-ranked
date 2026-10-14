@@ -12,6 +12,7 @@
  */
 import pg from "pg";
 import { rate, decay, defaultState, } from "../rating/glicko2.js";
+import { capRating } from "../server/ratingService.js";
 const DAY = 86_400_000;
 async function main() {
     const url = process.env.DATABASE_URL;
@@ -112,7 +113,8 @@ async function recomputeFormat(pool, format, matches) {
             const before = stateAtStart(id);
             let after;
             if (played.has(id)) {
-                after = rate(before, results.get(id));
+                // mesmo teto de variação do caminho ao vivo, para o batch não desfazê-lo
+                after = capRating(before.rating, rate(before, results.get(id)), before.rd);
                 history.push({ playerId: id, at: periodEnd, before, after });
             }
             else {

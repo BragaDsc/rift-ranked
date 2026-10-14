@@ -9,6 +9,22 @@ export interface ApplyResult { host: AppliedRating; joiner: AppliedRating; }
  * verdade) recalcula depois a partir do rating_history.
  */
 import { rateSingle } from "../rating/glicko2.js";
+import { PROVISIONAL_RD } from "./repository.js";
+/**
+ * Teto de variação de MMR por partida (como o LP do LoL). Em um pool pequeno o
+ * Glicko-2 por-jogo pode mover o MMR demais, ainda mais com jogadores provisórios
+ * (RD alto) ou contra oponentes distantes. Limitamos a variação para a progressão
+ * ser suave; o RD/volatility continuam evoluindo pelo Glicko (o jogador estabiliza
+ * e passa a variar menos naturalmente).
+ */
+export const PROVISIONAL_CAP = 100; // durante a colocação (RD > PROVISIONAL_RD)
+export const ESTABLISHED_CAP = 40;  // jogador já estabelecido
+export function capRating(beforeRating, after, preRd) {
+    const lim = preRd > PROVISIONAL_RD ? PROVISIONAL_CAP : ESTABLISHED_CAP;
+    const d = after.rating - beforeRating;
+    if (Math.abs(d) <= lim) return after;
+    return { ...after, rating: beforeRating + Math.sign(d) * lim };
+}
 /**
  * `winnerId === null` significa partida anulada (no-show): nada muda no MMR.
  */
@@ -29,8 +45,8 @@ export async function applyRatedResult(repo, args) {
     const hostScore = winnerId === hostId ? 1 : 0;
     const joinerScore = winnerId === joinerId ? 1 : 0;
     // Importante: cada jogador é avaliado contra o estado do oponente ANTES da partida.
-    const hostAfter = rateSingle(hostBefore, joinerBefore, hostScore);
-    const joinerAfter = rateSingle(joinerBefore, hostBefore, joinerScore);
+    const hostAfter = capRating(hostBefore.rating, rateSingle(hostBefore, joinerBefore, hostScore), hostBefore.rd);
+    const joinerAfter = capRating(joinerBefore.rating, rateSingle(joinerBefore, hostBefore, joinerScore), joinerBefore.rd);
     const isWalkover = args.reason === "walkover";
     const hostWon = winnerId === hostId;
     await repo.saveRating({
