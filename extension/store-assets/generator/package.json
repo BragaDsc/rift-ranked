@@ -1,0 +1,8 @@
+{
+  "name": "rift-ranked-store-assets",
+  "private": true,
+  "type": "module",
+  "description": "Gera os assets da Chrome Web Store (HTML/CSS -> Chrome headless -> JPEG no tamanho exato).",
+  "scripts": { "build": "node render.mjs" },
+  "dependencies": { "puppeteer-core": "^23.0.0", "sharp": "^0.33.0" }
+}
