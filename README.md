@@ -89,9 +89,12 @@ Pré-requisitos no servidor: Node 20+, PostgreSQL, pm2 e um proxy reverso (ex.: 
 ```bash
 export RANKED_SSH_KEY=/caminho/para/chave_de_deploy      # NÃO comite a chave
 export RANKED_HOST=root@SEU_SERVIDOR                     # destino ssh
-scripts/push-backend.sh    # compila, empacota, aplica migrações idempotentes e reinicia o pm2
+scripts/push-backend.sh            # alvo = prod: compila, empacota, migra e reinicia o pm2
+scripts/push-backend.sh staging    # mesmo bundle no servidor de TESTES (porta 4101, banco próprio)
 ```
 
+- **Staging:** há um segundo backend isolado (pm2/porta/banco/role próprios) pra testar
+  antes de promover pro prod. Fluxo completo em [`docs/STAGING.md`](docs/STAGING.md).
 - **Migrações:** adicione blocos idempotentes (`CREATE TABLE IF NOT EXISTS …`) em
   `backend/db/migrations.sql`; rodam sozinhas no deploy.
 - **Segredos:** `PORT`, `DATABASE_URL`, `ADMIN_TOKEN` ficam em `.env` no servidor, **fora do Git**.

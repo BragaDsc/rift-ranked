@@ -1,3 +1,4 @@
+import { decodeJwt, identityFromClaims } from "./inpage/identity";
 /**
  * Script do mundo MAIN (run_at document_start).
  *
@@ -224,12 +225,7 @@
       return m ? decodeURIComponent(m[1]) : null;
     } catch { return null; }
   }
-  function decodeJwt(t: string): any {
-    try {
-      const b = t.split(".")[1];
-      return JSON.parse(atob(b.replace(/-/g, "+").replace(/_/g, "/")));
-    } catch { return null; }
-  }
+  // decodeJwt / identityFromClaims: lógica pura em ./inpage/identity (testada).
   // Gera um token FRESCO pela Frontend API do Clerk (como o antigo getToken()).
   // O cookie __session expira em ~60s e o RiftAtlas não o renova sozinho; mas o
   // cookie de cliente (long-lived) autentica este POST, que devolve um JWT novo.
@@ -260,15 +256,7 @@
       return { id: c.user.id, username: c.user.username || c.user.firstName || "Jogador" };
     }
     // 2) cookie __session (Clerk atual, sem window.Clerk)
-    const p = decodeJwt(sessionToken() || "");
-    if (p && p.sub) {
-      const name = (typeof p.nickname === "string" && p.nickname) ||
-        (typeof p.username === "string" && p.username) ||
-        (typeof p.name === "string" && p.name) ||
-        (typeof p.given_name === "string" && p.given_name) || "Jogador";
-      return { id: p.sub, username: name };
-    }
-    return null;
+    return identityFromClaims(decodeJwt(sessionToken() || ""));
   }
 
   let announced = false;

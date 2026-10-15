@@ -1,15 +1,27 @@
 #!/usr/bin/env bash
 # Deploy idempotente do backend ranked na VPS.
-# Roda em /opt/riftatlas-ranked (onde o bundle foi extraído).
 # NÃO toca em Caddy nem em outros serviços. Só: Postgres (db dedicado) + pm2.
+#
+# Parametrizável por ambiente (prod é o default — comportamento inalterado):
+#   APP_DIR   diretório do bundle         (default /opt/riftatlas-ranked)
+#   DB_NAME   banco Postgres dedicado     (default riftatlas_ranked)
+#   DB_USER   role Postgres dedicada      (default ranked)
+#   PORT      porta HTTP/WS do processo   (default 4100)
+#   PM2_NAME  nome do processo no pm2     (default riftatlas-ranked)
+#
+# IMPORTANTE: staging usa DB_USER PRÓPRIO (ex.: ranked_staging). Se compartilhasse
+# a role com o prod, o ALTER ROLE ... PASSWORD do deploy de staging trocaria a
+# senha da role e derrubaria a conexão do prod.
 set -euo pipefail
 
-APP_DIR=/opt/riftatlas-ranked
-DB_NAME=riftatlas_ranked
-DB_USER=ranked
+APP_DIR="${APP_DIR:-/opt/riftatlas-ranked}"
+DB_NAME="${DB_NAME:-riftatlas_ranked}"
+DB_USER="${DB_USER:-ranked}"
+PORT="${PORT:-4100}"
+PM2_NAME="${PM2_NAME:-riftatlas-ranked}"
 ENV_FILE="$APP_DIR/.env"
-PORT=4100
 
+echo "[deploy] alvo: dir=$APP_DIR db=$DB_NAME user=$DB_USER port=$PORT pm2=$PM2_NAME"
 cd "$APP_DIR"
 
 # 1) credenciais: reaproveita .env se existir, senão gera senha hex (sem caracteres especiais)
@@ -59,13 +71,13 @@ fi
 npm ci --omit=dev
 
 # 5) pm2 (start ou restart)
-if pm2 describe riftatlas-ranked >/dev/null 2>&1; then
-  pm2 restart riftatlas-ranked --update-env
+if pm2 describe "$PM2_NAME" >/dev/null 2>&1; then
+  pm2 restart "$PM2_NAME" --update-env
 else
-  pm2 start dist/index.js --name riftatlas-ranked --update-env
+  pm2 start dist/index.js --name "$PM2_NAME" --update-env
 fi
 pm2 save
 
 sleep 1
 echo "[deploy] health check:"
-curl -s "http://127.0.0.1:${PORT}/ranked/api/health" && echo || echo "(sem resposta — ver 'pm2 logs riftatlas-ranked')"
+curl -s "http://127.0.0.1:${PORT}/ranked/api/health" && echo || echo "(sem resposta — ver 'pm2 logs ${PM2_NAME}')"
