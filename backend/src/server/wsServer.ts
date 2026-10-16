@@ -34,6 +34,24 @@ function readJson(req: http.IncomingMessage): Promise<any> {
 }
 const WS_PATH = "/ranked/ws";
 const TICK_MS = 1000;
+/**
+ * Repara nomes com mojibake de UTF-8 lido como Latin-1 (ex.: "FabrÃ­cio" -> "Fabrício").
+ * A extensão decodifica o JWT do Clerk com atob() (byte-a-byte), o que estraga nomes
+ * acentuados antes de enviá-los. Consertamos na INGESTÃO para não gravar lixo — e para
+ * não depender de atualizar a extensão. Só repara quando a assinatura é inequívoca
+ * (tudo no range Latin-1, contém Ã/Â e re-decodifica como UTF-8 válido), de modo a
+ * JAMAIS tocar num nome já correto (ex.: "Fabrício" de uma extensão corrigida).
+ */
+export function repairMojibake(s: any): any {
+    if (typeof s !== "string" || !s) return s;
+    if (![...s].every((c) => c.charCodeAt(0) <= 0xff)) return s; // fora do Latin-1 → não é esse mojibake
+    if (!/[Â-Ã]/.test(s)) return s;                     // sem a assinatura Ã/Â
+    try {
+        const dec = Buffer.from(s, "latin1").toString("utf8");
+        if (dec && dec !== s && !dec.includes("�")) return dec; // re-decodificou limpo
+    } catch { /* mantém original */ }
+    return s;
+}
 /** Páginas estáticas (carregadas uma vez). */
 function loadPage(name, fallback) {
     try {
@@ -407,7 +425,7 @@ export function startServer(opts) {
                     const id = await verifyClerkToken(msg.token);
                     const player = await repo.getOrCreatePlayer({
                         clerkUserId: id.clerkUserId,
-                        displayName: msg.displayName || id.displayName,
+                        displayName: repairMojibake(msg.displayName || id.displayName),
                         riftatlasPlrId: msg.riftatlasPlrId,
                     });
                     conn.playerId = player.id;
