@@ -303,16 +303,27 @@ import * as R from "./ranks";
   // -------------------- conexão com o backend --------------------
   // backoff exponencial de reconexão (3s → 30s); zera ao autenticar com sucesso.
   let reconnectDelay = 3000;
+  // Reagenda a reconexão. EM PARTIDA ATIVA usa intervalo CURTO e FIXO (2s): o backoff
+  // exponencial (3→30s) podia empurrar a próxima tentativa para além da janela de
+  // grace do backend e causar W.O. FALSO mesmo com o jogador presente. Fora de
+  // partida mantém o backoff (poupa recursos).
+  function scheduleReconnect() {
+    const inMatch = !!state.match;
+    setTimeout(maybeConnect, inMatch ? 2000 : reconnectDelay);
+    if (!inMatch) reconnectDelay = Math.min(reconnectDelay * 2, 30000);
+  }
   async function maybeConnect() {
     if (state.ws || !state.identity) return;
     const token = await getToken();
-    if (!token) { setStatus(() => T().noToken, "error"); return; }
+    // Sem token (ex.: cookie do Clerk renovando): NÃO desiste — segue tentando
+    // (rápido se em partida). Antes isso parava a reconexão e podia virar W.O.
+    if (!token) { setStatus(() => T().noToken, "error"); scheduleReconnect(); return; }
     const ws = new WebSocket(backendWs());
     state.ws = ws;
     ws.addEventListener("open", () =>
       send({ type: "auth", token, displayName: state.identity.username, riftatlasPlrId: state.plrId || undefined }));
     ws.addEventListener("message", (ev) => { let m; try { m = JSON.parse(ev.data); } catch { return; } handleServer(m); });
-    ws.addEventListener("close", () => { state.ws = null; state.authed = false; state.online = null; state.queueCounts = null; state.queued = null; state.queuedAt = 0; stopQueueTimer(); setStatus(() => T().connecting); updateUI(); setTimeout(maybeConnect, reconnectDelay); reconnectDelay = Math.min(reconnectDelay * 2, 30000); });
+    ws.addEventListener("close", () => { state.ws = null; state.authed = false; state.online = null; state.queueCounts = null; state.queued = null; state.queuedAt = 0; stopQueueTimer(); setStatus(() => T().connecting); updateUI(); scheduleReconnect(); });
     ws.addEventListener("error", () => ws.close());
   }
   function send(o) { if (state.ws && state.ws.readyState === WebSocket.OPEN) state.ws.send(JSON.stringify(o)); }
@@ -359,7 +370,11 @@ import * as R from "./ranks";
         state.authed = true; state.ourPlayerId = msg.playerId; reconnectDelay = 3000;
         for (const r of msg.ratings) state.ratings[r.format] = r;
         setStatus(() => T().ready); refreshProfile(); break;
-      case "auth_error": setStatus(() => T().authFail(msg.message), "error"); break;
+      case "auth_error":
+        // token recusado (ex.: expirado). Zera o backoff: a próxima tentativa já
+        // minta um token fresco — não adianta esperar 30s acumulados.
+        reconnectDelay = 3000;
+        setStatus(() => T().authFail(msg.message), "error"); break;
       case "online_count": state.online = typeof msg.count === "number" ? msg.count : null; if (msg.queued && typeof msg.queued === "object") state.queueCounts = msg.queued; updateUI(); break;
       case "queued": { const f = msg.format; state.queued = f; state.queuedAt = Date.now(); startQueueTimer(); setStatus(() => T().queued(fmtShort(f)) + " · " + mmss(Date.now() - state.queuedAt)); break; }
       case "dequeued": state.queued = null; state.queuedAt = 0; stopQueueTimer(); setStatus(() => T().dequeued); break;

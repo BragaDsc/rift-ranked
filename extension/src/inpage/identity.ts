@@ -15,8 +15,12 @@ export function decodeJwt(token: string | null | undefined): any {
     if (!token) return null;
     const b = token.split(".")[1];
     if (!b) return null;
-    // base64url → base64 e decodifica
-    const json = atob(b.replace(/-/g, "+").replace(/_/g, "/"));
+    // base64url → base64 → bytes → UTF-8. atob() sozinho devolve uma string byte-a-byte
+    // (Latin-1), o que CORROMPE acentos (ex.: "Fabrício" virava "FabrÃ­cio"). Decodificar
+    // os bytes como UTF-8 preserva o nome correto.
+    const bin = atob(b.replace(/-/g, "+").replace(/_/g, "/"));
+    const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+    const json = new TextDecoder().decode(bytes);
     return JSON.parse(json);
   } catch {
     return null;

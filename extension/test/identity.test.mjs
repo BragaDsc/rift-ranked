@@ -15,6 +15,12 @@ describe("decodeJwt", () => {
     expect(p.sub).toBe("user_123");
     expect(p.nickname).toBe("Ramon");
   });
+  it("decodifica acentos corretamente (UTF-8, não atob cru)", () => {
+    const p = decodeJwt(jwt({ sub: "u", nickname: "Fabrício", name: "João Conceição" }));
+    expect(p.nickname).toBe("Fabrício");
+    expect(p.name).toBe("João Conceição");
+    expect(identityFromClaims(p)).toEqual({ id: "u", username: "Fabrício" });
+  });
   it("tolera lixo sem quebrar (retorna null)", () => {
     expect(decodeJwt("")).toBe(null);
     expect(decodeJwt(null)).toBe(null);

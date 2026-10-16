@@ -230,24 +230,29 @@ import { decodeJwt, identityFromClaims } from "./inpage/identity";
   // O cookie __session expira em ~60s e o RiftAtlas não o renova sozinho; mas o
   // cookie de cliente (long-lived) autentica este POST, que devolve um JWT novo.
   async function mintToken(): Promise<string | null> {
-    try {
-      const p = decodeJwt(sessionToken() || "");
-      const sid = p && p.sid;
-      const base = (p && typeof p.iss === "string" && p.iss) || "https://clerk.riftatlas.com";
-      if (sid) {
-        const r = await fetch(
-          base + "/v1/client/sessions/" + encodeURIComponent(sid) + "/tokens?_clerk_js_version=5.22.0",
-          { method: "POST", credentials: "include", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: "" },
-        );
-        if (r.ok) {
-          const d = await r.json();
-          if (d && d.jwt) return d.jwt;
-        }
+    const raw = sessionToken();
+    const p = decodeJwt(raw || "");
+    const sid = p && p.sid;
+    const base = (p && typeof p.iss === "string" && p.iss) || "https://clerk.riftatlas.com";
+    // 1) MINTA um JWT fresco pela FAPI do Clerk (2 tentativas — falha transiente de rede)
+    if (sid) {
+      for (let i = 0; i < 2; i++) {
+        try {
+          const r = await fetch(
+            base + "/v1/client/sessions/" + encodeURIComponent(sid) + "/tokens?_clerk_js_version=5.22.0",
+            { method: "POST", credentials: "include", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: "" },
+          );
+          if (r.ok) { const d = await r.json(); if (d && d.jwt) return d.jwt; }
+        } catch { /* tenta de novo / cai pro fallback */ }
       }
-    } catch { /* cai pro fallback */ }
-    // fallbacks: window.Clerk (se voltar) e, por último, o cookie cru
+    }
+    // 2) fallback: window.Clerk (se voltar a existir)
     try { const t = await window.Clerk?.session?.getToken?.(); if (t) return t; } catch { /* sem window.Clerk */ }
-    return sessionToken();
+    // 3) último recurso: o cookie cru — SÓ se ainda não expirou. Mandar um token
+    //    expirado faz o backend rejeitar (ERR_JWT_EXPIRED) e fechar o socket, gerando
+    //    um loop de reconexão. Melhor devolver null e tentar de novo depois.
+    if (raw && p && typeof p.exp === "number" && p.exp * 1000 > Date.now() + 5000) return raw;
+    return null;
   }
   function readIdentity() {
     // 1) window.Clerk (compat com a versão antiga do RiftAtlas)
