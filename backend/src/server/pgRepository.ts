@@ -421,6 +421,18 @@ export class PgRepository {
     async pruneMetrics(days = 90) {
         await this.pool.query(`DELETE FROM metrics_snapshots WHERE at < now() - ($1 * interval '1 day')`, [Math.max(1, Number(days) || 90)]);
     }
+    /** Grava um relato de problema enviado por um jogador. */
+    async saveReport(r) {
+        await this.pool.query(`INSERT INTO bug_reports (player_id, message, context) VALUES ($1, $2, $3)`, [r.playerId ?? null, r.message, JSON.stringify(r.context ?? {})]);
+    }
+    /** Lê os relatos recentes (painel admin). */
+    async recentReports(limit = 50) {
+        const { rows } = await this.pool.query(`SELECT b.id, b.player_id, p.display_name, b.message, b.context,
+              extract(epoch from b.created_at) * 1000 AS at
+         FROM bug_reports b LEFT JOIN players p ON p.id = b.player_id
+        ORDER BY b.created_at DESC LIMIT $1`, [Math.min(Number(limit) || 50, 200)]);
+        return rows.map((r) => ({ id: Number(r.id), playerId: r.player_id, displayName: r.display_name, message: r.message, context: r.context, at: Number(r.at) }));
+    }
     /** Reset de temporada: zera ratings/partidas/filas/conduta. Mantém contas e reputação (likes). */
     async resetSeason() {
         await this.pool.query(`TRUNCATE rating_history, match_decks, matches, player_ratings, queue_entries, conduct_events, player_conduct RESTART IDENTITY CASCADE`);

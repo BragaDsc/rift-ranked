@@ -49,6 +49,9 @@ export interface Repository {
   saveMetricsSnapshot?(s: { online: number; queued: { bo1: number; bo3: number }; activeMatches: number }): Promise<void>;
   recentMetrics?(hours?: number): Promise<any[]>;
   pruneMetrics?(days?: number): Promise<void>;
+  /** Relatos de problema enviados pelos jogadores (botão "Relatar problema"). */
+  saveReport?(r: { playerId: PlayerId | null; message: string; context: any }): Promise<void>;
+  recentReports?(limit?: number): Promise<any[]>;
 }
 
 export interface ChampionStat {

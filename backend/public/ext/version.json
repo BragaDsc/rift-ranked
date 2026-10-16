@@ -1,5 +1,5 @@
 {
-  "version": "0.3.40",
-  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.40",
-  "notes": "Mostra quantos jogadores estao na fila de Md1/Md3; reconexao mais rapida durante a partida (evita W.O. falso por queda breve de conexao); re-autenticacao robusta (nao trava em sessao expirada, nao martela o servidor); acentos nos nomes corrigidos (ex.: Fabricio)."
+  "version": "0.3.41",
+  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.41",
+  "notes": "Novo: botao 'Relatar problema' (no menu de engrenagem) para enviar bugs. Mostra quantos jogadores estao na fila de Md1/Md3. Reconexao mais rapida durante a partida (evita W.O. falso por queda breve). Re-autenticacao robusta (nao trava em sessao expirada). Acentos nos nomes corrigidos (ex.: Fabricio)."
 }

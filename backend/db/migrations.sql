@@ -69,3 +69,13 @@ CREATE INDEX IF NOT EXISTS idx_metrics_at ON metrics_snapshots (at DESC);
 
 -- Índice para o histórico de partidas do jogador (ORDER BY ended_at).
 CREATE INDEX IF NOT EXISTS idx_matches_ended ON matches (ended_at DESC);
+
+-- Relatos de problema/bug enviados pelos jogadores (botão "Relatar problema").
+CREATE TABLE IF NOT EXISTS bug_reports (
+  id         bigserial   PRIMARY KEY,
+  player_id  uuid        REFERENCES players(id) ON DELETE SET NULL,
+  message    text        NOT NULL,
+  context    jsonb       NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_bug_reports_at ON bug_reports (created_at DESC);

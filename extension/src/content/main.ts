@@ -91,6 +91,7 @@ import * as R from "./ranks";
       ready: "Pronto.", inGame: "Partida em andamento…", series: (a, b) => "Série " + a + "–" + b, noToken: "Faça login no RiftAtlas e recarregue (F5).",
       notLogged: "Não conectado. Faça login no RiftAtlas e recarregue (F5).",
       sounds: "Sons", sndMatch: "Encontrar partida", sndWin: "Vitória", sndLoss: "Derrota",
+      reportProblem: "Relatar problema", reportPlaceholder: "Descreva o que aconteceu…", reportSend: "Enviar relato", reportThanks: "Obrigado! Relato enviado.", reportFail: "Falha ao enviar. Tente de novo.",
       matchOver: "Fim da partida", whoWon: "Quem venceu?", youWonOpt: "Você", confirmBtn: "Confirmar",
       rateOpp: "Avalie o oponente", like: "Curtir", dislike: "Não curtir",
       waitingOpp: "Aguardando o oponente confirmar…",
@@ -132,6 +133,7 @@ import * as R from "./ranks";
       ready: "Ready.", inGame: "Match in progress…", series: (a, b) => "Series " + a + "–" + b, noToken: "Log in to RiftAtlas and reload (F5).",
       notLogged: "Not connected. Log in to RiftAtlas and reload (F5).",
       sounds: "Sounds", sndMatch: "Match found", sndWin: "Victory", sndLoss: "Defeat",
+      reportProblem: "Report a problem", reportPlaceholder: "Describe what happened…", reportSend: "Send report", reportThanks: "Thanks! Report sent.", reportFail: "Failed to send. Try again.",
       matchOver: "Match over", whoWon: "Who won?", youWonOpt: "You", confirmBtn: "Confirm",
       rateOpp: "Rate your opponent", like: "Like", dislike: "Dislike",
       waitingOpp: "Waiting for your opponent to confirm…",
@@ -173,6 +175,7 @@ import * as R from "./ranks";
       ready: "就绪。", inGame: "对局进行中…", series: (a, b) => "系列赛 " + a + "–" + b, noToken: "请登录 RiftAtlas 并刷新（F5）。",
       notLogged: "未连接。请登录 RiftAtlas 并刷新（F5）。",
       sounds: "音效", sndMatch: "匹配成功", sndWin: "胜利", sndLoss: "失败",
+      reportProblem: "报告问题", reportPlaceholder: "描述发生了什么…", reportSend: "发送报告", reportThanks: "谢谢！报告已发送。", reportFail: "发送失败，请重试。",
       matchOver: "对局结束", whoWon: "谁赢了？", youWonOpt: "你", confirmBtn: "确认",
       rateOpp: "评价对手", like: "点赞", dislike: "点踩",
       waitingOpp: "等待对手确认…",
@@ -905,6 +908,12 @@ import * as R from "./ranks";
         #ranked-overlay .st-row .sw::after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#6b7686;transition:.15s}
         #ranked-overlay .st-row.on .sw{background:linear-gradient(180deg,#e4c877,#c8aa6e)}
         #ranked-overlay .st-row.on .sw::after{left:16px;background:#1a1300}
+        #ranked-overlay #rk-report-txt{width:100%;box-sizing:border-box;resize:vertical;min-height:52px;background:#0d1522;border:1px solid #2a3850;border-radius:8px;color:#dfe6f0;font-family:inherit;font-size:12px;padding:8px;outline:none}
+        #ranked-overlay #rk-report-txt:focus{border-color:#c8aa6e}
+        #ranked-overlay .rk-report-btn{width:100%;margin-top:7px;cursor:pointer;border:0;border-radius:8px;padding:9px 0;font-weight:700;font-size:12px;color:#1a1300;background:linear-gradient(180deg,#e4c877,#c8aa6e)}
+        #ranked-overlay .rk-report-btn:disabled{opacity:.5;cursor:default}
+        #ranked-overlay .rk-report-msg{font-size:11px;margin-top:6px;text-align:center;min-height:14px}
+        #ranked-overlay .rk-report-msg.ok{color:#8fcf86} #ranked-overlay .rk-report-msg.err{color:#e0938f}
       </style>
       <div class="hd">
         <div class="mk"><svg width="19" height="19" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="rkmk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f0d89a"/><stop offset="1" stop-color="#b5873a"/></linearGradient></defs><path d="M12 1.6l9 5.2v10.4L12 22.4 3 17.2V6.8L12 1.6z" fill="url(#rkmk)" stroke="#f0d89a" stroke-width="1" stroke-linejoin="round"/></svg><span class="hd-dot" id="rk-hdot"></span></div>
@@ -938,6 +947,10 @@ import * as R from "./ranks";
           <button class="st-row" data-snd="match"><span>${t.sndMatch}</span><i class="sw"></i></button>
           <button class="st-row" data-snd="win"><span>${t.sndWin}</span><i class="sw"></i></button>
           <button class="st-row" data-snd="loss"><span>${t.sndLoss}</span><i class="sw"></i></button>
+          <div class="st-title" style="margin-top:12px">${t.reportProblem}</div>
+          <textarea id="rk-report-txt" rows="3" maxlength="2000" placeholder="${t.reportPlaceholder}"></textarea>
+          <button id="rk-report-send" class="rk-report-btn">${t.reportSend}</button>
+          <div id="rk-report-msg" class="rk-report-msg"></div>
         </div>
         ${DEBUG ? `<button id="rk-cap" style="width:100%;margin-top:8px;cursor:pointer;border:1px solid rgba(120,160,200,.4);background:rgba(90,136,196,.12);color:#bcd3ef;border-radius:7px;padding:8px 0;font-weight:600;font-size:11.5px">⧉ Copiar captura (debug)</button>` : ""}
         <div class="foot"><a href="${LADDER_URL}" target="_blank" rel="noopener">${t.ladder}</a></div>
@@ -989,8 +1002,42 @@ import * as R from "./ranks";
   });
   window.addEventListener("resize", () => { if (ui && ui.style.left) clampPos(ui); });
 
+  // envia um relato de problema ao backend, com contexto automático (sem dados sensíveis)
+  async function sendReport(txt, btn, msgEl) {
+    const message = String(txt || "").trim();
+    if (!message) return;
+    btn.disabled = true; msgEl.className = "rk-report-msg"; msgEl.textContent = "…";
+    const context: any = {
+      version: extVersion(), lang,
+      name: state.identity?.username || null,
+      format: state.match?.format || state.queued || null,
+      matchId: state.match?.matchId || null,
+      page: (() => { try { return location.hostname; } catch { return null; } })(),
+      ua: (() => { try { return navigator.userAgent; } catch { return null; } })(),
+    };
+    try {
+      const r = await fetch(`${httpBase()}/api/report`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message, playerId: state.ourPlayerId || null, context }),
+      });
+      if (!r.ok) throw new Error("http " + r.status);
+      msgEl.className = "rk-report-msg ok"; msgEl.textContent = T().reportThanks;
+      const ta = document.querySelector("#rk-report-txt") as HTMLTextAreaElement | null; if (ta) ta.value = "";
+    } catch {
+      msgEl.className = "rk-report-msg err"; msgEl.textContent = T().reportFail;
+    } finally { btn.disabled = false; }
+  }
+
   function wireUI(root) {
     { const cap = root.querySelector("#rk-cap"); if (cap) cap.addEventListener("click", () => copyCapture(cap)); }
+    {
+      const btn = root.querySelector("#rk-report-send");
+      if (btn) btn.addEventListener("click", () => {
+        const ta = root.querySelector("#rk-report-txt");
+        const msgEl = root.querySelector("#rk-report-msg");
+        sendReport(ta && ta.value, btn, msgEl);
+      });
+    }
     root.querySelectorAll(".seg button").forEach((b) =>
       b.addEventListener("click", () => {
         ensureAudio(); // destrava o som (gesto do usuário)

@@ -23,7 +23,10 @@ import { verifyClerkToken } from "../auth/clerk.js";
 function readJson(req: http.IncomingMessage): Promise<any> {
     return new Promise((resolve) => {
         let data = "";
-        req.on("data", (c) => (data += c));
+        req.on("data", (c) => {
+            data += c;
+            if (data.length > 64_000) { data = ""; req.destroy(); resolve({}); } // teto anti-abuso
+        });
         req.on("end", () => { try {
             resolve(JSON.parse(data || "{}"));
         }
@@ -123,6 +126,14 @@ export function startServer(opts) {
         }
         catch (e) { console.error("[alert] falha ao notificar:", e); }
     }
+    // Notifica um relato de problema (webhook dedicado REPORT_WEBHOOK, senão o de alerta).
+    async function notifyReport(text: string) {
+        const url = process.env.REPORT_WEBHOOK || process.env.ALERT_WEBHOOK;
+        if (!url) return;
+        try { await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ content: text }) }); }
+        catch (e) { console.error("[report] falha ao notificar:", e); }
+    }
+    const reportHits = new Map<string, number[]>(); // rate-limit de relatos por IP
     function checkAuthHealth() {
         const fails = authFailsLastHour(), oks = okLastHour();
         const broken = fails >= 5 && fails > oks; // muitas falhas e mais falhas que sucessos
@@ -299,6 +310,27 @@ export function startServer(opts) {
                 }));
                 return;
             }
+            // relato de problema (público, rate-limited) — botão "Relatar problema" da extensão
+            if (req.method === "POST" && url.pathname === "/ranked/api/report") {
+                const ip = String(req.headers["x-forwarded-for"] || req.socket.remoteAddress || "?").split(",")[0].trim();
+                const now = Date.now();
+                const hits = (reportHits.get(ip) || []).filter((t) => now - t < 60000);
+                if (hits.length >= 5) { res.statusCode = 429; res.end(JSON.stringify({ error: "too_many" })); return; }
+                hits.push(now); reportHits.set(ip, hits);
+                const body = await readJson(req);
+                const message = String(body?.message ?? "").trim().slice(0, 2000);
+                if (!message) { res.statusCode = 400; res.end(JSON.stringify({ error: "empty" })); return; }
+                let ctx: any = {};
+                try { ctx = JSON.parse(JSON.stringify(body?.context ?? {})); } catch { ctx = {}; }
+                if (JSON.stringify(ctx).length > 4000) ctx = {}; // contexto grande demais → descarta
+                const playerId = typeof body?.playerId === "string" ? body.playerId : null;
+                try { await repo.saveReport?.({ playerId, message, context: ctx }); }
+                catch (e) { console.error("[report] falha ao salvar:", e); }
+                const who = (ctx && ctx.name) || playerId || "anônimo";
+                notifyReport(`🐞 Relato de ${who}${ctx?.version ? ` (v${ctx.version})` : ""}: ${message.slice(0, 500)}`).catch(() => { });
+                res.end(JSON.stringify({ ok: true }));
+                return;
+            }
             // --- admin (protegido por token) ---
             if (url.pathname.startsWith("/ranked/api/admin/")) {
                 // preferir header (não vaza em logs/histórico); query mantida p/ compat
@@ -316,6 +348,13 @@ export function startServer(opts) {
                     const hours = Number(url.searchParams.get("hours") ?? 24);
                     const snapshots = (await repo.recentMetrics?.(hours)) ?? [];
                     res.end(JSON.stringify({ hours, snapshots, live: { online: onlineCount(), ...orch.stats(), authOk: metrics.authOk, authFail: metrics.authFail, authFailsLastHour: authFailsLastHour() } }));
+                    return;
+                }
+                // relatos de problema enviados pelos jogadores
+                if (req.method === "GET" && url.pathname === "/ranked/api/admin/reports") {
+                    const limit = Number(url.searchParams.get("limit") ?? 50);
+                    const reports = (await repo.recentReports?.(limit)) ?? [];
+                    res.end(JSON.stringify({ reports }));
                     return;
                 }
                 if (req.method === "GET" && url.pathname === "/ranked/api/admin/disputes") {
