@@ -103,10 +103,15 @@ export function startServer(opts) {
     };
     // Observabilidade: contadores de auth. Um pico de authFail = o RiftAtlas
     // provavelmente mudou (Clerk/selectors) — sinal de quebra visível em /api/stats.
-    const metrics = { authOk: 0, authFail: 0, authFailTimes: [] as number[], authOkTimes: [] as number[] };
+    // authExpired (token vencido) é BENIGNO — a sessão do usuário no RiftAtlas expirou
+    // e o cliente reconecta em loop com um token velho. NÃO é quebra do RiftAtlas, então
+    // fica num contador à parte (não dispara o alerta) e o log é resumido (1x/min).
+    const metrics = { authOk: 0, authFail: 0, authExpired: 0, authFailTimes: [] as number[], authOkTimes: [] as number[], authExpiredTimes: [] as number[] };
     const lastHour = (arr: number[]) => { const cut = Date.now() - 3600000; return arr.filter((t) => t >= cut); };
     const authFailsLastHour = () => (metrics.authFailTimes = lastHour(metrics.authFailTimes)).length;
     const okLastHour = () => (metrics.authOkTimes = lastHour(metrics.authOkTimes)).length;
+    const authExpiredLastHour = () => (metrics.authExpiredTimes = lastHour(metrics.authExpiredTimes)).length;
+    let expiredLogAt = 0, expiredLogCount = 0; // throttle do log de token expirado
     // Alerta ATIVO de quebra: se a auth falha em massa (RiftAtlas mudou o Clerk/
     // selectors), avisa num webhook (ALERT_WEBHOOK, ex.: Discord). No-op se não setado.
     let alertActive = false;
@@ -246,6 +251,7 @@ export function startServer(opts) {
                 res.end(JSON.stringify({
                     online: onlineCount(), ...orch.stats(),
                     authOk: metrics.authOk, authFail: metrics.authFail, authFailsLastHour: authFailsLastHour(),
+                    authExpired: metrics.authExpired, authExpiredLastHour: authExpiredLastHour(),
                 }));
                 return;
             }
@@ -442,9 +448,23 @@ export function startServer(opts) {
                     metrics.authOk++; metrics.authOkTimes.push(Date.now());
                 }
                 catch (err) {
-                    metrics.authFail++; metrics.authFailTimes.push(Date.now());
-                    console.error("[auth] token rejeitado:", err?.code || err?.name || err?.message || err);
-                    send0(ws, { type: "auth_error", message: "Token inválido." });
+                    const code = err?.code || err?.name || err?.message || String(err);
+                    if (code === "ERR_JWT_EXPIRED") {
+                        // sessão do usuário vencida (benigno): conta à parte, log resumido 1x/min
+                        metrics.authExpired++; metrics.authExpiredTimes.push(Date.now());
+                        expiredLogCount++;
+                        const now = Date.now();
+                        if (now - expiredLogAt >= 60000) {
+                            console.warn(`[auth] ${expiredLogCount} token(s) expirado(s) no último min (sessão do usuário vencida — reconexão em loop)`);
+                            expiredLogAt = now; expiredLogCount = 0;
+                        }
+                        send0(ws, { type: "auth_error", message: "Sessão expirada. Faça login no RiftAtlas e recarregue (F5)." });
+                    } else {
+                        // falha REAL (assinatura/issuer) — sinal de quebra; conta e alerta
+                        metrics.authFail++; metrics.authFailTimes.push(Date.now());
+                        console.error("[auth] token rejeitado:", code);
+                        send0(ws, { type: "auth_error", message: "Token inválido." });
+                    }
                     ws.close();
                 }
                 return;
