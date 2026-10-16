@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Rift Ranked — Relatos</title>
+  <meta name="theme-color" content="#0a0e16" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%230e1a2e'/%3E%3Ctext%20x='16'%20y='23'%20font-family='Georgia,serif'%20font-size='20'%20font-weight='bold'%20text-anchor='middle'%20fill='%23e4c877'%3ER%3C/text%3E%3C/svg%3E" />
+  <style>
+    :root { --bg:#0a0e16; --bg2:#0c1220; --panel:#10172485; --line:rgba(197,170,110,.16);
+      --line2:rgba(255,255,255,.06); --gold:#c8aa6e; --gold-d:#7a5f30; --txt:#e4e3dc; --dim:#8b94a3; --muted:#5b6676; --loss:#c0615d; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--txt);
+      font:14px/1.5 ui-sans-serif, system-ui, "Segoe UI", Roboto, Arial, sans-serif; -webkit-font-smoothing:antialiased; }
+    .wrap { max-width:860px; margin:0 auto; padding:22px 16px 60px; }
+    header { display:flex; align-items:center; gap:12px; margin-bottom:18px; flex-wrap:wrap; }
+    .brand { display:flex; align-items:center; gap:10px; }
+    .badge { width:34px; height:34px; border-radius:8px; background:linear-gradient(145deg,#edd8a4,#c8aa6e 42%,#7a5f30);
+      display:flex; align-items:center; justify-content:center; font:800 20px Georgia,serif; color:#101722;
+      box-shadow:0 3px 8px #0008, inset 0 1px 0 #fff6; }
+    h1 { font-size:18px; margin:0; font-weight:700; letter-spacing:.3px; }
+    h1 small { color:var(--dim); font-weight:500; font-size:13px; }
+    .sp { flex:1; }
+    button { cursor:pointer; border:1px solid var(--line); background:#111a2b; color:#dfe6f0;
+      border-radius:8px; padding:8px 14px; font-weight:600; font-size:13px; }
+    button:hover { border-color:var(--gold); }
+    button.gold { background:linear-gradient(180deg,#e4c877,#c8aa6e); color:#1a1300; border:0; }
+    .count { color:var(--dim); font-size:13px; }
+    /* login */
+    .login { max-width:360px; margin:60px auto; background:var(--bg2); border:1px solid var(--line); border-radius:12px; padding:22px; text-align:center; }
+    .login h2 { font-size:16px; margin:0 0 4px; }
+    .login p { color:var(--dim); font-size:13px; margin:0 0 16px; }
+    .login input { width:100%; background:#0d1522; border:1px solid var(--line2); border-radius:8px; color:var(--txt);
+      padding:10px; font-size:14px; outline:none; margin-bottom:12px; }
+    .login input:focus { border-color:var(--gold); }
+    .err { color:var(--loss); font-size:13px; min-height:18px; margin-bottom:8px; }
+    /* reports */
+    .card { background:var(--bg2); border:1px solid var(--line2); border-radius:10px; padding:14px 16px; margin-bottom:12px; }
+    .card .top { display:flex; align-items:center; gap:10px; margin-bottom:8px; flex-wrap:wrap; }
+    .who { font-weight:700; color:#eceef2; }
+    .when { color:var(--muted); font-size:12.5px; }
+    .msg { white-space:pre-wrap; word-break:break-word; color:#dfe4ec; }
+    .chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+    .chip { font-size:11px; color:#aeb8c6; background:rgba(255,255,255,.05); border:1px solid var(--line2);
+      border-radius:999px; padding:2px 9px; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .chip b { color:var(--gold); font-weight:700; }
+    .empty { text-align:center; color:var(--dim); padding:50px 0; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand"><div class="badge">R</div><h1>Relatos de problema <small>· Rift Ranked</small></h1></div>
+      <div class="sp"></div>
+      <span class="count" id="count"></span>
+      <button id="refresh">Atualizar</button>
+      <button id="logout">Sair</button>
+    </header>
+    <div id="login" class="login" style="display:none">
+      <h2>Acesso admin</h2>
+      <p>Cole o <b>ADMIN_TOKEN</b> do servidor para ver os relatos.</p>
+      <div class="err" id="loginErr"></div>
+      <input id="token" type="password" placeholder="ADMIN_TOKEN" autocomplete="off" />
+      <button class="gold" id="enter" style="width:100%">Entrar</button>
+    </div>
+    <div id="list"></div>
+  </div>
+  <script>
+    (function () {
+      var KEY = "rr_admin_token";
+      // base = caminho até /ranked (funciona em prod e em /staging/ranked)
+      var BASE = location.pathname.replace(/\/admin\/reports\/?$/, "") || "/ranked";
+      var $ = function (id) { return document.getElementById(id); };
+      function esc(s) { var d = document.createElement("div"); d.textContent = s == null ? "" : String(s); return d.innerHTML; }
+      function getToken() { try { return localStorage.getItem(KEY) || ""; } catch (e) { return ""; } }
+      function setToken(t) { try { t ? localStorage.setItem(KEY, t) : localStorage.removeItem(KEY); } catch (e) {} }
+      function showLogin(msg) { $("login").style.display = "block"; $("list").innerHTML = ""; $("count").textContent = ""; $("loginErr").textContent = msg || ""; $("token").focus(); }
+      function hideLogin() { $("login").style.display = "none"; }
+      function fmtTime(ms) { try { return new Date(ms).toLocaleString("pt-BR"); } catch (e) { return ""; } }
+
+      function render(reports) {
+        hideLogin();
+        $("count").textContent = reports.length + (reports.length === 1 ? " relato" : " relatos");
+        if (!reports.length) { $("list").innerHTML = '<div class="empty">Nenhum relato ainda.</div>'; return; }
+        var html = reports.map(function (r) {
+          var who = r.displayName || (r.context && r.context.name) || "anônimo";
+          var ctx = r.context || {};
+          var chips = [];
+          if (ctx.version) chips.push("v" + esc(ctx.version));
+          if (ctx.format) chips.push("<b>" + esc(ctx.format) + "</b>");
+          if (ctx.matchId) chips.push("match " + esc(String(ctx.matchId).slice(0, 8)));
+          if (ctx.lang) chips.push(esc(ctx.lang));
+          if (ctx.page) chips.push(esc(ctx.page));
+          if (r.playerId) chips.push("id " + esc(String(r.playerId).slice(0, 8)));
+          if (ctx.ua) chips.push('<span title="' + esc(ctx.ua) + '">' + esc(String(ctx.ua).slice(0, 48)) + "…</span>");
+          return '<div class="card"><div class="top"><span class="who">' + esc(who) + '</span>' +
+            '<span class="when">' + esc(fmtTime(r.at)) + '</span></div>' +
+            '<div class="msg">' + esc(r.message) + '</div>' +
+            (chips.length ? '<div class="chips">' + chips.map(function (c) { return '<span class="chip">' + c + "</span>"; }).join("") + "</div>" : "") +
+            "</div>";
+        }).join("");
+        $("list").innerHTML = html;
+      }
+
+      async function load() {
+        var token = getToken();
+        if (!token) { showLogin(); return; }
+        $("count").textContent = "carregando…";
+        try {
+          var r = await fetch(BASE + "/api/admin/reports?limit=100", { headers: { Authorization: "Bearer " + token } });
+          if (r.status === 403) { setToken(""); showLogin("Token inválido."); return; }
+          if (!r.ok) throw new Error("http " + r.status);
+          var d = await r.json();
+          render(d.reports || []);
+        } catch (e) { $("count").textContent = ""; $("list").innerHTML = '<div class="empty">Falha ao carregar. Tente Atualizar.</div>'; }
+      }
+
+      $("enter").addEventListener("click", function () { var t = $("token").value.trim(); if (!t) return; setToken(t); $("token").value = ""; load(); });
+      $("token").addEventListener("keydown", function (e) { if (e.key === "Enter") $("enter").click(); });
+      $("refresh").addEventListener("click", load);
+      $("logout").addEventListener("click", function () { setToken(""); showLogin(); });
+      load();
+    })();
+  </script>
+</body>
+</html>
