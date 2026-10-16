@@ -30,7 +30,10 @@ export const DEFAULT_CONFIG = {
     pairing: DEFAULT_PAIRING,
     matchedTimeoutMs: 90_000,
     roomReadyTimeoutMs: 90_000,
-    reconnectGraceMs: 60_000, // 1 min para o jogador que caiu voltar antes do W.O. automático
+    reconnectGraceMs: 180_000, // 3 min para o jogador que caiu voltar antes do W.O. automático.
+    // Era 60s, mas o cliente reconecta com backoff crescente (3→30s); 60s não cobriam
+    // uma instabilidade de rede de ~1 min e geravam W.O. FALSO com o jogador presente.
+    // 180s dão folga para as várias tentativas de reconexão do cliente caberem na janela.
     griefWindowMs: 120_000,
     // janela de confirmação do vencedor (ambos confirmam antes de finalizar):
     confirmTimeoutMs: 30_000, // oponente tem 30s p/ responder; sem resposta, vale quem confirmou
@@ -97,6 +100,7 @@ export class Orchestrator {
                         Object.keys(nm.disconnectedAt).length > 0;
                     if (!stillGone)
                         this.deadlines.delete(matchId);
+                    console.log(`[match] ${new Date().toISOString()} ${matchId} RECONNECT ${side} (${playerId}) -> ${nm?.state}; W.O. ${stillGone ? "ainda armado" : "cancelado"}`);
                 }
             }
         }
@@ -124,9 +128,11 @@ export class Orchestrator {
             this.apply(m, { type: "DISCONNECT", side, at: this.now() });
             // prazo de grace
             this.deadlines.set(m.id, this.now() + this.cfg.reconnectGraceMs);
+            console.log(`[match] ${new Date().toISOString()} ${m.id} DISCONNECT ${side} (${playerId}) -> ABANDON_GRACE; W.O. em ${Math.round(this.cfg.reconnectGraceMs / 1000)}s se não voltar`);
         }
         else if (m.state === "ABANDON_GRACE") {
             this.apply(m, { type: "DISCONNECT", side, at: this.now() });
+            console.log(`[match] ${new Date().toISOString()} ${m.id} DISCONNECT ${side} (${playerId}) durante ABANDON_GRACE`);
         }
     }
     // ----------------------------- fila -----------------------------
@@ -455,6 +461,8 @@ export class Orchestrator {
                 this.cancel(m, "Tempo esgotado para montar a sala.");
             }
             else if (m.state === "ABANDON_GRACE") {
+                const gone = Object.keys(m.disconnectedAt ?? {}).join(",") || "?";
+                console.log(`[match] ${new Date().toISOString()} ${m.id} GRACE_EXPIRED (lado(s) fora: ${gone}) -> resolvendo por W.O.`);
                 this.apply(m, { type: "GRACE_EXPIRED" });
                 await this.attemptResolve(m, /*graceExpired*/ true);
             }
