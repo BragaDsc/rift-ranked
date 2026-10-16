@@ -86,6 +86,7 @@ import * as R from "./ranks";
       update: (v) => "Atualização v" + v + " disponível", download: "Baixar",
       connecting: "Conectando…", stillConnecting: "Ainda conectando…",
       online: (n) => n + (n === 1 ? " jogador online" : " jogadores online"),
+      inQueue: (n) => n + (n === 1 ? " na fila" : " na fila"),
       notInLobby: "Vá para a tela inicial (onde aparece “Host Room”) para entrar na fila.",
       ready: "Pronto.", inGame: "Partida em andamento…", series: (a, b) => "Série " + a + "–" + b, noToken: "Faça login no RiftAtlas e recarregue (F5).",
       notLogged: "Não conectado. Faça login no RiftAtlas e recarregue (F5).",
@@ -126,6 +127,7 @@ import * as R from "./ranks";
       update: (v) => "Update v" + v + " available", download: "Download",
       connecting: "Connecting…", stillConnecting: "Still connecting…",
       online: (n) => n + (n === 1 ? " player online" : " players online"),
+      inQueue: (n) => n + " in queue",
       notInLobby: "Go to the home screen (where “Host Room” is) to join the queue.",
       ready: "Ready.", inGame: "Match in progress…", series: (a, b) => "Series " + a + "–" + b, noToken: "Log in to RiftAtlas and reload (F5).",
       notLogged: "Not connected. Log in to RiftAtlas and reload (F5).",
@@ -166,6 +168,7 @@ import * as R from "./ranks";
       update: (v) => "有新版本 v" + v, download: "下载",
       connecting: "连接中…", stillConnecting: "仍在连接…",
       online: (n) => n + " 人在线",
+      inQueue: (n) => n + " 人在排队",
       notInLobby: "请回到主界面（显示“Host Room”的页面）再加入队列。",
       ready: "就绪。", inGame: "对局进行中…", series: (a, b) => "系列赛 " + a + "–" + b, noToken: "请登录 RiftAtlas 并刷新（F5）。",
       notLogged: "未连接。请登录 RiftAtlas 并刷新（F5）。",
@@ -225,6 +228,7 @@ import * as R from "./ranks";
     oppGone: false,     // oponente desconectou/saiu da partida (sinal do RiftAtlas)
     oppGoneAt: 0,       // quando o oponente caiu (ms) — base do cronômetro de reconexão
     online: null,       // jogadores online agora (do backend) — null = desconhecido
+    queueCounts: null,  // { bo1, bo3 } — quantos estão na fila de cada formato (do backend)
     concedeArm: false,  // botão desistir "armado" (aguardando confirmação)
     queuedAt: 0,        // quando entrou na fila (ms) — base do cronômetro de fila
     statusKind: null,   // estado do status p/ cor/ícone (override; senão é inferido)
@@ -308,7 +312,7 @@ import * as R from "./ranks";
     ws.addEventListener("open", () =>
       send({ type: "auth", token, displayName: state.identity.username, riftatlasPlrId: state.plrId || undefined }));
     ws.addEventListener("message", (ev) => { let m; try { m = JSON.parse(ev.data); } catch { return; } handleServer(m); });
-    ws.addEventListener("close", () => { state.ws = null; state.authed = false; state.online = null; state.queued = null; state.queuedAt = 0; stopQueueTimer(); setStatus(() => T().connecting); updateUI(); setTimeout(maybeConnect, reconnectDelay); reconnectDelay = Math.min(reconnectDelay * 2, 30000); });
+    ws.addEventListener("close", () => { state.ws = null; state.authed = false; state.online = null; state.queueCounts = null; state.queued = null; state.queuedAt = 0; stopQueueTimer(); setStatus(() => T().connecting); updateUI(); setTimeout(maybeConnect, reconnectDelay); reconnectDelay = Math.min(reconnectDelay * 2, 30000); });
     ws.addEventListener("error", () => ws.close());
   }
   function send(o) { if (state.ws && state.ws.readyState === WebSocket.OPEN) state.ws.send(JSON.stringify(o)); }
@@ -356,7 +360,7 @@ import * as R from "./ranks";
         for (const r of msg.ratings) state.ratings[r.format] = r;
         setStatus(() => T().ready); refreshProfile(); break;
       case "auth_error": setStatus(() => T().authFail(msg.message), "error"); break;
-      case "online_count": state.online = typeof msg.count === "number" ? msg.count : null; updateUI(); break;
+      case "online_count": state.online = typeof msg.count === "number" ? msg.count : null; if (msg.queued && typeof msg.queued === "object") state.queueCounts = msg.queued; updateUI(); break;
       case "queued": { const f = msg.format; state.queued = f; state.queuedAt = Date.now(); startQueueTimer(); setStatus(() => T().queued(fmtShort(f)) + " · " + mmss(Date.now() - state.queuedAt)); break; }
       case "dequeued": state.queued = null; state.queuedAt = 0; stopQueueTimer(); setStatus(() => T().dequeued); break;
       case "match_found":
@@ -811,6 +815,10 @@ import * as R from "./ranks";
         #ranked-overlay .seg button:hover{color:#140e02;border-color:#e8cf94;background:linear-gradient(180deg,#f0d89a,#c8aa6e);box-shadow:0 10px 22px -10px rgba(200,170,110,.6),inset 0 1px 0 rgba(255,255,255,.3)}
         #ranked-overlay .seg button[disabled]{opacity:.35;cursor:default;box-shadow:none;color:#f3f6fb;background:linear-gradient(180deg,#19274a,#111d33)}
         #ranked-overlay .seg button.off{opacity:.5}
+        #ranked-overlay .qn{display:none;margin-left:6px;padding:1px 6px;border-radius:999px;font-size:10.5px;font-weight:800;line-height:1.5;vertical-align:middle;background:rgba(255,255,255,.1);color:#aeb8c6}
+        #ranked-overlay .qn.on{display:inline-block}
+        #ranked-overlay .qn.has{background:rgba(200,170,110,.2);color:#e2c889}
+        #ranked-overlay .seg button:hover .qn{background:rgba(20,14,2,.18);color:#140e02}
         #ranked-overlay .cancel{width:100%;margin-top:9px;cursor:pointer;border:1px solid rgba(192,97,93,.35);background:rgba(60,25,28,.3);color:#e0a3a0;border-radius:9px;padding:8px 0;font-weight:700;font-size:11.5px;display:none;transition:.14s}
         #ranked-overlay .cancel:hover{background:rgba(80,30,34,.45)}
         #ranked-overlay .cancel.show{display:block}
@@ -902,8 +910,8 @@ import * as R from "./ranks";
           <div class="fc" id="fc-bo3"></div>
         </div>
         <div class="seg">
-          <button data-f="bo1">${t.playMd1}</button>
-          <button data-f="bo3">${t.playMd3}</button>
+          <button data-f="bo1">${t.playMd1}<span class="qn" id="rk-qn-bo1"></span></button>
+          <button data-f="bo3">${t.playMd3}<span class="qn" id="rk-qn-bo3"></span></button>
         </div>
         <button class="cancel" id="rk-cancel">${t.leave}</button>
         <div class="status" id="rk-status">${t.connecting}</div>
@@ -1080,6 +1088,22 @@ import * as R from "./ranks";
         onEl.innerHTML = `<span class="rk-dot"></span>${T().online(state.online)}`;
         onEl.style.display = "flex";
       } else { onEl.innerHTML = ""; onEl.style.display = "none"; }
+    }
+    // quantos estão na fila de cada formato (do backend), ao lado de cada botão Jogar
+    const qc = state.queueCounts;
+    for (const f of ["bo1", "bo3"]) {
+      const qnEl = ui.querySelector("#rk-qn-" + f);
+      if (!qnEl) continue;
+      const n = qc && typeof qc[f] === "number" ? qc[f] : null;
+      if (state.authed && n != null) {
+        qnEl.textContent = String(n);
+        qnEl.setAttribute("title", T().inQueue(n));
+        qnEl.classList.add("on");
+        qnEl.classList.toggle("has", n > 0);
+      } else {
+        qnEl.textContent = "";
+        qnEl.classList.remove("on", "has");
+      }
     }
     const busy = !!state.match;
     const canHost = !!(S && S.canHost && S.canHost());

@@ -74,8 +74,10 @@ export function startServer(opts) {
     // Jogadores online = conexões autenticadas distintas. Transmite a contagem a
     // todos sempre que alguém entra/sai, para a extensão exibir em tempo real.
     const onlineCount = () => connsByPlayer.size;
+    // Transmite online + tamanho das filas (por formato) a todos. A extensão mostra
+    // quantos estão esperando em Md1/Md3 em tempo real, para a pessoa decidir se entra.
     const broadcastOnline = () => {
-        const payload = JSON.stringify({ type: "online_count", count: onlineCount() });
+        const payload = JSON.stringify({ type: "online_count", count: onlineCount(), queued: orch.stats().queued });
         for (const c of connsByPlayer.values()) {
             if (c.ws.readyState === WebSocket.OPEN)
                 c.ws.send(payload);
@@ -448,8 +450,14 @@ export function startServer(opts) {
             }
         });
     });
+    // Retransmite as filas quando elas mudam (entrou/saiu/pareou/caiu) — detectar no
+    // ticker cobre todos os casos num lugar só, com latência ≤1 tick, sem spam.
+    let lastQueueSig = "";
     const ticker = setInterval(() => {
         orch.tick().catch((e) => console.error("tick error", e));
+        const q = orch.stats().queued;
+        const sig = JSON.stringify(q);
+        if (sig !== lastQueueSig) { lastQueueSig = sig; broadcastOnline(); }
     }, TICK_MS);
     // snapshot de métricas + verificação de saúde da auth a cada 5 min
     let lastPrune = 0;
