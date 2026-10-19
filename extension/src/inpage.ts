@@ -56,7 +56,7 @@ import { decodeJwt, identityFromClaims } from "./inpage/identity";
         const p = decodeJwt(t);
         if (isRiftToken(p) && typeof p.exp === "number" && p.exp * 1000 > Date.now() && t !== capJwt) {
           capJwt = t; capAt = Date.now(); if (typeof p.sid === "string") capSid = p.sid;
-          if (DEBUG) { try { const h = JSON.parse(atob(t.split(".")[0].replace(/-/g, "+").replace(/_/g, "/"))); console.log("[ranked] token capturado — sub:", p.sub, "kid:", h.kid, "sid:", p.sid || "(sem)", "claims:", Object.keys(p).join(",")); } catch { } }
+          if (DEBUG) { try { console.log("[ranked] token capturado — sub:", p.sub, "sid:", p.sid || "(sem)", "claims:", Object.keys(p).join(","), "metadata:", JSON.stringify(p.metadata || {}).slice(0, 300)); } catch { } }
         }
       }
     } catch { /* ignora */ }
@@ -298,6 +298,28 @@ import { decodeJwt, identityFromClaims } from "./inpage/identity";
       return best;
     } catch { return null; }
   }
+  // O RiftAtlas (via Convex) NÃO mantém mais sessão Clerk no navegador: __client_uat=0,
+  // /v1/client sem sessões e sem cookie __session. O único token que existe é o do
+  // template "Convex" (iss=clerk, aud=convex, SEM sid, assinado por chave fora do JWKS),
+  // que o cliente guarda no localStorage e renova sozinho. Lê de lá: é a fonte mais
+  // estável (não depende do timing da captura de rede) e segue a conta logada.
+  function localStorageToken(): string | null {
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i); if (!k) continue;
+        let v: string | null = null; try { v = localStorage.getItem(k); } catch { continue; }
+        // o token pode estar no VALOR (puro ou dentro de JSON) ou na própria CHAVE
+        const hay = (k.indexOf("eyJ") >= 0 ? k + "\n" : "") + (v && v.indexOf("eyJ") >= 0 ? v : "");
+        if (hay.indexOf("eyJ") < 0) continue;
+        const found = hay.match(JWT_RE); if (!found) continue;
+        for (const t of found) {
+          const p = decodeJwt(t);
+          if (isRiftToken(p) && typeof p.exp === "number" && p.exp * 1000 > Date.now() + 5000) return t;
+        }
+      }
+    } catch { /* ignora */ }
+    return null;
+  }
   // Estado de login do Clerk: cookie __client_uat (0 = deslogado; timestamp > 0 = logado).
   // É o sinal correto de sessão — o __session continua presente/mintável mesmo após logout.
   function clerkSignedIn() {
@@ -353,21 +375,49 @@ import { decodeJwt, identityFromClaims } from "./inpage/identity";
         } catch (e: any) { if (DEBUG) { try { console.log("[ranked] mint erro:", e && e.message); } catch { } } }
       }
     }
-    // fallbacks: window.Clerk (se voltar) e o cookie cru não-expirado
+    // fallbacks: window.Clerk, cookie cru, token do localStorage e, por fim, o token
+    // capturado da rede. Todos são o token do Convex (sem sid), que o backend aceita
+    // sem verificar assinatura quando CLERK_ACCEPT_UNVERIFIED=1 (ver clerk.ts).
     try { const t = await window.Clerk?.session?.getToken?.(); if (t) return t; } catch { /* sem window.Clerk */ }
     const raw = sessionToken(); if (raw && notExpired(raw)) return raw;
+    const lst = localStorageToken(); if (lst) { if (DEBUG) { try { console.log("[ranked] usando token do localStorage (sem mint)"); } catch { } } return lst; }
+    if (capJwt && notExpired(capJwt)) { if (DEBUG) { try { console.log("[ranked] usando token capturado (sem mint)"); } catch { } } return capJwt; }
     return null;
   }
+  // Nome que o jogador usa no RiftAtlas (campo "Your name", persistido). O token do
+  // Convex vem com `metadata` VAZIO → identityFromClaims cai em "Jogador". Como o nome
+  // NÃO está no token, lemos do localStorage p/ não exibir todo mundo como "Jogador".
+  // (A identidade em si continua sendo o `id` único do Clerk; isto é só o rótulo.)
+  function riftPlayerName(): string | null {
+    try {
+      for (const k of ["riftbound_simulator_player_name", "riftbound_simulator_player_name_account"]) {
+        const v = localStorage.getItem(k);
+        if (v && v.trim()) return v.trim();
+      }
+    } catch { /* ignora */ }
+    return null;
+  }
+  // Se o username só tem o fallback "Jogador" (token sem nome), usa o nome do RiftAtlas.
+  function withBetterName(id: { id: string; username: string } | null) {
+    if (id && (!id.username || id.username === "Jogador")) {
+      const n = riftPlayerName(); if (n) id.username = n;
+    }
+    return id;
+  }
   function readIdentity() {
-    // 1) token capturado e RECENTE (≤2min) → reflete a conta realmente logada agora.
-    //    Se o RiftAtlas parar de renovar (logout), ele "envelhece" e caímos pro passo 3.
-    if (capJwt && Date.now() - capAt < 120_000) { const id = identityFromClaims(decodeJwt(capJwt)); if (id) return id; }
-    // 2) window.Clerk (compat com a versão antiga do RiftAtlas)
+    // 1) token do localStorage — fonte PERSISTENTE que o app renova sozinho; é a que
+    //    sobrevive ao ficar parado no lobby (a captura de rede "envelhece" sem tráfego).
+    const lst = localStorageToken();
+    if (lst) { const id = identityFromClaims(decodeJwt(lst)); if (id) return withBetterName(id); }
+    // 2) token capturado e RECENTE (≤2min) → reflete a conta realmente logada agora.
+    //    Se o RiftAtlas parar de renovar (logout), ele "envelhece" e caímos pro passo 4.
+    if (capJwt && Date.now() - capAt < 120_000) { const id = identityFromClaims(decodeJwt(capJwt)); if (id) return withBetterName(id); }
+    // 3) window.Clerk (compat com a versão antiga do RiftAtlas)
     const c = window.Clerk;
-    if (c && c.loaded && c.user) return { id: c.user.id, username: c.user.username || c.user.firstName || "Jogador" };
-    // 3) cookie __session (fallback) — gated por __client_uat p/ perceber logout
+    if (c && c.loaded && c.user) return { id: c.user.id, username: c.user.username || c.user.firstName || riftPlayerName() || "Jogador" };
+    // 4) cookie __session (fallback) — gated por __client_uat p/ perceber logout
     if (!clerkSignedIn()) return null;
-    return identityFromClaims(decodeJwt(sessionToken() || ""));
+    return withBetterName(identityFromClaims(decodeJwt(sessionToken() || "")));
   }
 
   // Poll contínuo: re-anuncia quando a identidade MUDA (login, troca de conta ou logout).

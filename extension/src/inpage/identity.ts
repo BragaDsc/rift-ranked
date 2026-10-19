@@ -35,11 +35,17 @@ export function decodeJwt(token: string | null | undefined): any {
  */
 export function identityFromClaims(p: any): Identity | null {
   if (!p || typeof p.sub !== "string" || !p.sub) return null;
+  // o token do template Convex do RiftAtlas guarda o nome dentro de `metadata`
+  const m = (p && typeof p.metadata === "object" && p.metadata) || {};
   const username =
     (typeof p.nickname === "string" && p.nickname) ||
     (typeof p.username === "string" && p.username) ||
     (typeof p.name === "string" && p.name) ||
     (typeof p.given_name === "string" && p.given_name) ||
+    (typeof m.username === "string" && m.username) ||
+    (typeof m.name === "string" && m.name) ||
+    (typeof m.displayName === "string" && m.displayName) ||
+    (typeof m.firstName === "string" && m.firstName) ||
     "Jogador";
   return { id: p.sub, username };
 }
