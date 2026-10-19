@@ -56,7 +56,7 @@ import { decodeJwt, identityFromClaims } from "./inpage/identity";
         const p = decodeJwt(t);
         if (isRiftToken(p) && typeof p.exp === "number" && p.exp * 1000 > Date.now() && t !== capJwt) {
           capJwt = t; capAt = Date.now(); if (typeof p.sid === "string") capSid = p.sid;
-          if (DEBUG) { try { console.log("[ranked] token capturado — sub:", p.sub, "iss:", p.iss, "aud:", p.aud); } catch { } }
+          if (DEBUG) { try { const h = JSON.parse(atob(t.split(".")[0].replace(/-/g, "+").replace(/_/g, "/"))); console.log("[ranked] token capturado — sub:", p.sub, "kid:", h.kid, "sid:", p.sid || "(sem)", "claims:", Object.keys(p).join(",")); } catch { } }
         }
       }
     } catch { /* ignora */ }
@@ -84,6 +84,7 @@ import { decodeJwt, identityFromClaims } from "./inpage/identity";
     OrigXHR.prototype.send = function (...a: any[]) {
       try {
         const url = String((this as any).__rkUrl || "");
+        const sidM = url.match(/\/sessions\/([^/?]+)\/tokens/); if (sidM) capSid = sidM[1];
         if (!SKIP_ASSET.test(url)) this.addEventListener("load", () => { try { scanForToken(this.responseText); } catch { } });
       } catch { /* ignora */ }
       return (send as any).apply(this, a);
@@ -335,6 +336,7 @@ import { decodeJwt, identityFromClaims } from "./inpage/identity";
     // (sem template), assinado pela chave da instância que ESTÁ no JWKS → verificável.
     if (mintedJwt && Date.now() - mintedAt < 45_000 && notExpired(mintedJwt)) return mintedJwt;
     const sid = await findSid();
+    if (DEBUG) { try { console.log("[ranked] mint: sid =", sid || "(nenhum)"); } catch { } }
     if (sid) {
       for (let i = 0; i < 2; i++) {
         try {
@@ -342,12 +344,13 @@ import { decodeJwt, identityFromClaims } from "./inpage/identity";
             CLERK + "/v1/client/sessions/" + encodeURIComponent(sid) + "/tokens?_clerk_js_version=5.22.0",
             { method: "POST", credentials: "include", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: "" },
           );
+          if (DEBUG) { try { console.log("[ranked] mint HTTP", r.status); } catch { } }
           if (r.ok) { const d = await r.json(); if (d && d.jwt) {
             mintedJwt = d.jwt; mintedAt = Date.now();
             if (DEBUG) { try { const h = JSON.parse(atob(d.jwt.split(".")[0].replace(/-/g, "+").replace(/_/g, "/"))); console.log("[ranked] token MINTADO — kid:", h.kid); } catch { } }
             return d.jwt;
           } }
-        } catch { /* tenta de novo / cai pro fallback */ }
+        } catch (e: any) { if (DEBUG) { try { console.log("[ranked] mint erro:", e && e.message); } catch { } } }
       }
     }
     // fallbacks: window.Clerk (se voltar) e o cookie cru não-expirado
