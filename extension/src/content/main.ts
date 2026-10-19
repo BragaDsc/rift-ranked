@@ -331,14 +331,14 @@ import * as R from "./ranks";
     const token = await getToken();
     // Sem token (ex.: cookie do Clerk renovando): NÃO desiste — segue tentando
     // (rápido se em partida). Antes isso parava a reconexão e podia virar W.O.
-    if (!token) { setStatus(() => T().noToken, "error"); scheduleReconnect(); return; }
+    if (!token) { if (DEBUG) try { console.log("[ranked] getToken vazio — identidade?", !!state.identity); } catch {} setStatus(() => T().noToken, "error"); scheduleReconnect(); return; }
+    if (DEBUG) try { console.log("[ranked] conectando ao backend:", backendWs(), "| token len:", String(token).length, "| user:", state.identity.username); } catch {}
     const ws = new WebSocket(backendWs());
     state.ws = ws;
-    ws.addEventListener("open", () =>
-      send({ type: "auth", token, displayName: state.identity.username, riftatlasPlrId: state.plrId || undefined }));
+    ws.addEventListener("open", () => { if (DEBUG) try { console.log("[ranked] WS aberto → enviando auth"); } catch {} send({ type: "auth", token, displayName: state.identity.username, riftatlasPlrId: state.plrId || undefined }); });
     ws.addEventListener("message", (ev) => { let m; try { m = JSON.parse(ev.data); } catch { return; } handleServer(m); });
-    ws.addEventListener("close", () => { state.ws = null; state.authed = false; state.online = null; state.queueCounts = null; state.queued = null; state.queuedAt = 0; stopQueueTimer(); setStatus(() => T().connecting); updateUI(); scheduleReconnect(); });
-    ws.addEventListener("error", () => ws.close());
+    ws.addEventListener("close", (ev) => { if (DEBUG) try { console.log("[ranked] WS fechou", ev.code, ev.reason); } catch {} state.ws = null; state.authed = false; state.online = null; state.queueCounts = null; state.queued = null; state.queuedAt = 0; stopQueueTimer(); setStatus(() => T().connecting); updateUI(); scheduleReconnect(); });
+    ws.addEventListener("error", () => { if (DEBUG) try { console.log("[ranked] WS erro"); } catch {} ws.close(); });
   }
   function send(o) { if (state.ws && state.ws.readyState === WebSocket.OPEN) state.ws.send(JSON.stringify(o)); }
   setInterval(() => { if (state.authed) send({ type: "heartbeat", matchId: state.match?.matchId }); }, 5000);
@@ -379,6 +379,7 @@ import * as R from "./ranks";
 
   // -------------------- mensagens do servidor --------------------
   async function handleServer(msg) {
+    if (DEBUG) try { console.log("[ranked] ←", msg.type, msg.type === "auth_error" ? (msg.message || "") : ""); } catch {}
     switch (msg.type) {
       case "auth_ok":
         state.authed = true; state.ourPlayerId = msg.playerId; reconnectDelay = 3000;
