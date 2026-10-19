@@ -1,5 +1,5 @@
 {
-  "version": "0.3.41",
-  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.41",
-  "notes": "Novo: botao 'Relatar problema' (no menu de engrenagem) para enviar bugs. Mostra quantos jogadores estao na fila de Md1/Md3. Reconexao mais rapida durante a partida (evita W.O. falso por queda breve). Re-autenticacao robusta (nao trava em sessao expirada). Acentos nos nomes corrigidos (ex.: Fabricio)."
+  "version": "0.3.42",
+  "url": "https://app.megacards.com.br/ranked/ext/riftatlas-ranked.zip?v=0.3.42",
+  "notes": "Corrige 'Faça login' mesmo logado: o Clerk passou a renovar o cookie __session sufixado; agora a extensao le qualquer __session* e usa o mais recente. Detecta logout real do Clerk (cookie __client_uat) e re-checa a identidade continuamente (nao fica mais preso no usuario antigo). Inclui as melhorias anteriores (fila Md1/Md3, reconexao robusta, acentos, relatar problema)."
 }

@@ -270,7 +270,18 @@ import * as R from "./ranks";
     if (bridgeNonce === null) bridgeNonce = d.n || null; // adota o carimbo da sessão
     else if (d.n !== bridgeNonce) return;                // carimbo divergente → descarta
     switch (d.kind) {
-      case "identity": state.identity = d.user; maybeConnect(); updateUI(); break;
+      case "identity": {
+        const prev = state.identity && state.identity.id;
+        const next = d.user && d.user.id;
+        state.identity = d.user || null;
+        if (prev && prev !== next) { // trocou de conta ou deslogou → derruba a conexão atual
+          state.authed = false; try { if (state.ws) state.ws.close(); } catch {} state.ws = null;
+        }
+        if (d.user) maybeConnect();
+        else { state.authed = false; try { if (state.ws) state.ws.close(); } catch {} state.ws = null; setStatus(() => T().notLogged, "error"); }
+        updateUI();
+        break;
+      }
       case "match_ws": if (d.plrId) state.plrId = d.plrId; break;
       case "game_frame": onGameFrame(d.state); break;
       case "decks": onDecks(d); break;

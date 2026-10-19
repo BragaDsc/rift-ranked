@@ -219,17 +219,43 @@ import { decodeJwt, identityFromClaims } from "./inpage/identity";
   // O RiftAtlas migrou o Clerk e NÃO expõe mais window.Clerk. A sessão agora fica
   // no cookie __session — um JWT do Clerk com sub = user id e name/nickname. Lemos
   // dele (identidade + token), com window.Clerk como fallback caso volte a existir.
+  // O Clerk usa __session (puro) E/OU __session_<hash> (sufixado) — e passou a renovar
+  // SÓ o sufixado (o puro pode estar vencido ou ausente). Pegamos qualquer __session* e
+  // escolhemos o de exp mais recente, para sempre achar a sessão atual do usuário.
   function sessionToken() {
     try {
-      const m = document.cookie.match(/(?:^|;\s*)__session=([^;]+)/);
-      return m ? decodeURIComponent(m[1]) : null;
+      const found = [];
+      for (const part of document.cookie.split(";")) {
+        const eq = part.indexOf("="); if (eq < 0) continue;
+        const name = part.slice(0, eq).trim();
+        if (name === "__session" || /^__session_[A-Za-z0-9]+$/.test(name)) found.push(decodeURIComponent(part.slice(eq + 1)));
+      }
+      if (!found.length) return null;
+      if (found.length === 1) return found[0];
+      let best = found[0], bestExp = -Infinity;
+      for (const t of found) { const p = decodeJwt(t); const e = p && typeof p.exp === "number" ? p.exp : -Infinity; if (e > bestExp) { bestExp = e; best = t; } }
+      return best;
     } catch { return null; }
+  }
+  // Estado de login do Clerk: cookie __client_uat (0 = deslogado; timestamp > 0 = logado).
+  // É o sinal correto de sessão — o __session continua presente/mintável mesmo após logout.
+  function clerkSignedIn() {
+    try {
+      let uat = -1, seen = false;
+      for (const part of document.cookie.split(";")) {
+        const eq = part.indexOf("="); if (eq < 0) continue;
+        const name = part.slice(0, eq).trim();
+        if (name === "__client_uat" || /^__client_uat_[A-Za-z0-9]+$/.test(name)) { seen = true; const v = parseInt(part.slice(eq + 1).trim(), 10); if (!isNaN(v)) uat = Math.max(uat, v); }
+      }
+      return seen ? uat > 0 : true; // sem o cookie uat (instância sem ele) → não bloqueia
+    } catch { return true; }
   }
   // decodeJwt / identityFromClaims: lógica pura em ./inpage/identity (testada).
   // Gera um token FRESCO pela Frontend API do Clerk (como o antigo getToken()).
   // O cookie __session expira em ~60s e o RiftAtlas não o renova sozinho; mas o
   // cookie de cliente (long-lived) autentica este POST, que devolve um JWT novo.
   async function mintToken(): Promise<string | null> {
+    if (!clerkSignedIn()) return null; // deslogado → não minta (o __session persiste após logout)
     const raw = sessionToken();
     const p = decodeJwt(raw || "");
     const sid = p && p.sid;
@@ -255,6 +281,8 @@ import { decodeJwt, identityFromClaims } from "./inpage/identity";
     return null;
   }
   function readIdentity() {
+    // deslogado (uat=0) → sem identidade, mesmo que o __session ainda exista no cookie
+    if (!clerkSignedIn()) return null;
     // 1) window.Clerk (compat com a versão antiga do RiftAtlas)
     const c = window.Clerk;
     if (c && c.loaded && c.user) {
@@ -264,15 +292,14 @@ import { decodeJwt, identityFromClaims } from "./inpage/identity";
     return identityFromClaims(decodeJwt(sessionToken() || ""));
   }
 
-  let announced = false;
-  const identityPoll = setInterval(() => {
+  // Poll contínuo: re-anuncia quando a identidade MUDA (login, troca de conta ou logout).
+  // Antes anunciava uma vez e parava — por isso o logout não era percebido (ficava logado).
+  let lastIdentitySig = "\u0000";
+  setInterval(() => {
     const user = readIdentity();
-    if (user && !announced) {
-      announced = true;
-      post({ kind: "identity", user });
-      clearInterval(identityPoll);
-    }
-  }, 500);
+    const sig = user ? user.id + "|" + user.username : "null";
+    if (sig !== lastIdentitySig) { lastIdentitySig = sig; post({ kind: "identity", user: user || null }); }
+  }, 1000);
 
   // ---------------------- 3) Pedidos vindos do content ----------------------
   window.addEventListener("message", async (ev) => {
