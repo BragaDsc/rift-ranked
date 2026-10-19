@@ -315,30 +315,44 @@ import { decodeJwt, identityFromClaims } from "./inpage/identity";
   // O cookie __session expira em ~60s e o RiftAtlas não o renova sozinho; mas o
   // cookie de cliente (long-lived) autentica este POST, que devolve um JWT novo.
   const notExpired = (t: string | null) => { const q = decodeJwt(t || ""); return q && typeof q.exp === "number" && q.exp * 1000 > Date.now() + 5000; };
+  const CLERK = "https://clerk.riftatlas.com";
+  // Descobre o session id (sid) pra mintar: da captura, do cookie, ou do /v1/client.
+  async function findSid(): Promise<string | null> {
+    if (capSid) return capSid;
+    const cp = decodeJwt(sessionToken() || ""); if (cp && typeof cp.sid === "string") return cp.sid;
+    const kp = decodeJwt(capJwt || ""); if (kp && typeof kp.sid === "string") return kp.sid;
+    try {
+      const r = await fetch(CLERK + "/v1/client?_clerk_js_version=5.22.0", { credentials: "include" });
+      if (r.ok) { const d = await r.json(); const c = (d && d.response) || d; if (c && typeof c.last_active_session_id === "string") return c.last_active_session_id; }
+    } catch { /* ignora */ }
+    return null;
+  }
+  let mintedJwt: string | null = null, mintedAt = 0;
   async function mintToken(): Promise<string | null> {
-    // 1) token capturado recente do próprio RiftAtlas — segue a conta ativa, sem cookie
-    if (capJwt && Date.now() - capAt < 50_000 && notExpired(capJwt)) return capJwt;
-    // 2) minta um JWT fresco pela FAPI, usando o sid capturado (ou o do cookie, se houver)
-    const raw = sessionToken();
-    const p = decodeJwt(raw || "");
-    const sid = capSid || (p && p.sid);
-    const base = (p && typeof p.iss === "string" && p.iss) || "https://clerk.riftatlas.com";
+    // IMPORTANTE: NÃO usamos o token capturado do Convex para autenticar — ele é
+    // assinado por uma chave (template) que NÃO está no JWKS do Clerk, então o nosso
+    // backend rejeita (ERR_JWKS_NO_MATCHING_KEY). Mintamos o token de sessão PADRÃO
+    // (sem template), assinado pela chave da instância que ESTÁ no JWKS → verificável.
+    if (mintedJwt && Date.now() - mintedAt < 45_000 && notExpired(mintedJwt)) return mintedJwt;
+    const sid = await findSid();
     if (sid) {
       for (let i = 0; i < 2; i++) {
         try {
           const r = await fetch(
-            base + "/v1/client/sessions/" + encodeURIComponent(sid) + "/tokens?_clerk_js_version=5.22.0",
+            CLERK + "/v1/client/sessions/" + encodeURIComponent(sid) + "/tokens?_clerk_js_version=5.22.0",
             { method: "POST", credentials: "include", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: "" },
           );
-          if (r.ok) { const d = await r.json(); if (d && d.jwt) { capJwt = d.jwt; capAt = Date.now(); return d.jwt; } }
+          if (r.ok) { const d = await r.json(); if (d && d.jwt) {
+            mintedJwt = d.jwt; mintedAt = Date.now();
+            if (DEBUG) { try { const h = JSON.parse(atob(d.jwt.split(".")[0].replace(/-/g, "+").replace(/_/g, "/"))); console.log("[ranked] token MINTADO — kid:", h.kid); } catch { } }
+            return d.jwt;
+          } }
         } catch { /* tenta de novo / cai pro fallback */ }
       }
     }
-    // 3) fallback: window.Clerk (se voltar a existir)
+    // fallbacks: window.Clerk (se voltar) e o cookie cru não-expirado
     try { const t = await window.Clerk?.session?.getToken?.(); if (t) return t; } catch { /* sem window.Clerk */ }
-    // 4) cookie cru, só se não expirou; senão o capturado não-expirado; senão null
-    if (raw && notExpired(raw)) return raw;
-    if (capJwt && notExpired(capJwt)) return capJwt;
+    const raw = sessionToken(); if (raw && notExpired(raw)) return raw;
     return null;
   }
   function readIdentity() {
