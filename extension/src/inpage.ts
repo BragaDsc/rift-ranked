@@ -36,6 +36,45 @@ import { decodeJwt, identityFromClaims } from "./inpage/identity";
     if (capBuf.length > 40) capBuf.splice(0, capBuf.length - 40);
   }
 
+  // ------------------- Captura do token do Clerk (carona) -------------------
+  // O RiftAtlas deixou de expor a sessão num cookie legível, mas o app DELE continua
+  // renovando o token (aud=convex) pela FAPI do Clerk. "Pegamos carona": interceptamos
+  // as respostas da FAPI que trazem { jwt } e guardamos o mais recente + o sid da URL.
+  // Com isso a extensão segue SEMPRE a conta realmente logada, sem depender de cookie —
+  // e resiste às mudanças de auth do RiftAtlas (window.Clerk, cookie, etc.).
+  let capJwt: string | null = null, capAt = 0, capSid: string | null = null;
+  const CLERK_FAPI = /https?:\/\/clerk\.[^/]+\/v1\//;
+  function takeTokenFrom(url: string, body: any) {
+    try {
+      const sidM = url.match(/\/sessions\/([^/?]+)\/tokens/);
+      if (sidM) capSid = sidM[1];
+      if (body && typeof body === "object" && typeof body.jwt === "string" && body.jwt) { capJwt = body.jwt; capAt = Date.now(); }
+    } catch { /* ignora */ }
+  }
+  const origFetch = window.fetch;
+  if (origFetch) {
+    window.fetch = function (...args: any[]) {
+      const ret = origFetch.apply(this, args as any);
+      try {
+        const url = String(typeof args[0] === "string" ? args[0] : (args[0] && args[0].url) || "");
+        if (CLERK_FAPI.test(url)) ret.then((r: Response) => { r.clone().json().then((d) => takeTokenFrom(url, d)).catch(() => { }); }).catch(() => { });
+      } catch { /* ignora */ }
+      return ret;
+    };
+  }
+  const OrigXHR = window.XMLHttpRequest;
+  if (OrigXHR && OrigXHR.prototype) {
+    const open = OrigXHR.prototype.open, send = OrigXHR.prototype.send;
+    OrigXHR.prototype.open = function (m: string, u: string, ...rest: any[]) { try { (this as any).__rkUrl = String(u); } catch { } return (open as any).call(this, m, u, ...rest); };
+    OrigXHR.prototype.send = function (...a: any[]) {
+      try {
+        const url = String((this as any).__rkUrl || "");
+        if (CLERK_FAPI.test(url)) this.addEventListener("load", () => { try { takeTokenFrom(url, JSON.parse(this.responseText)); } catch { } });
+      } catch { /* ignora */ }
+      return (send as any).apply(this, a);
+    };
+  }
+
   // ---------------------- 1) Intercepta o WebSocket ----------------------
   const OrigWS = window.WebSocket;
   function PatchedWS(url, protocols) {
@@ -254,13 +293,15 @@ import { decodeJwt, identityFromClaims } from "./inpage/identity";
   // Gera um token FRESCO pela Frontend API do Clerk (como o antigo getToken()).
   // O cookie __session expira em ~60s e o RiftAtlas não o renova sozinho; mas o
   // cookie de cliente (long-lived) autentica este POST, que devolve um JWT novo.
+  const notExpired = (t: string | null) => { const q = decodeJwt(t || ""); return q && typeof q.exp === "number" && q.exp * 1000 > Date.now() + 5000; };
   async function mintToken(): Promise<string | null> {
-    if (!clerkSignedIn()) return null; // deslogado → não minta (o __session persiste após logout)
+    // 1) token capturado recente do próprio RiftAtlas — segue a conta ativa, sem cookie
+    if (capJwt && Date.now() - capAt < 50_000 && notExpired(capJwt)) return capJwt;
+    // 2) minta um JWT fresco pela FAPI, usando o sid capturado (ou o do cookie, se houver)
     const raw = sessionToken();
     const p = decodeJwt(raw || "");
-    const sid = p && p.sid;
+    const sid = capSid || (p && p.sid);
     const base = (p && typeof p.iss === "string" && p.iss) || "https://clerk.riftatlas.com";
-    // 1) MINTA um JWT fresco pela FAPI do Clerk (2 tentativas — falha transiente de rede)
     if (sid) {
       for (let i = 0; i < 2; i++) {
         try {
@@ -268,27 +309,26 @@ import { decodeJwt, identityFromClaims } from "./inpage/identity";
             base + "/v1/client/sessions/" + encodeURIComponent(sid) + "/tokens?_clerk_js_version=5.22.0",
             { method: "POST", credentials: "include", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: "" },
           );
-          if (r.ok) { const d = await r.json(); if (d && d.jwt) return d.jwt; }
+          if (r.ok) { const d = await r.json(); if (d && d.jwt) { capJwt = d.jwt; capAt = Date.now(); return d.jwt; } }
         } catch { /* tenta de novo / cai pro fallback */ }
       }
     }
-    // 2) fallback: window.Clerk (se voltar a existir)
+    // 3) fallback: window.Clerk (se voltar a existir)
     try { const t = await window.Clerk?.session?.getToken?.(); if (t) return t; } catch { /* sem window.Clerk */ }
-    // 3) último recurso: o cookie cru — SÓ se ainda não expirou. Mandar um token
-    //    expirado faz o backend rejeitar (ERR_JWT_EXPIRED) e fechar o socket, gerando
-    //    um loop de reconexão. Melhor devolver null e tentar de novo depois.
-    if (raw && p && typeof p.exp === "number" && p.exp * 1000 > Date.now() + 5000) return raw;
+    // 4) cookie cru, só se não expirou; senão o capturado não-expirado; senão null
+    if (raw && notExpired(raw)) return raw;
+    if (capJwt && notExpired(capJwt)) return capJwt;
     return null;
   }
   function readIdentity() {
-    // deslogado (uat=0) → sem identidade, mesmo que o __session ainda exista no cookie
-    if (!clerkSignedIn()) return null;
-    // 1) window.Clerk (compat com a versão antiga do RiftAtlas)
+    // 1) token capturado e RECENTE (≤2min) → reflete a conta realmente logada agora.
+    //    Se o RiftAtlas parar de renovar (logout), ele "envelhece" e caímos pro passo 3.
+    if (capJwt && Date.now() - capAt < 120_000) { const id = identityFromClaims(decodeJwt(capJwt)); if (id) return id; }
+    // 2) window.Clerk (compat com a versão antiga do RiftAtlas)
     const c = window.Clerk;
-    if (c && c.loaded && c.user) {
-      return { id: c.user.id, username: c.user.username || c.user.firstName || "Jogador" };
-    }
-    // 2) cookie __session (Clerk atual, sem window.Clerk)
+    if (c && c.loaded && c.user) return { id: c.user.id, username: c.user.username || c.user.firstName || "Jogador" };
+    // 3) cookie __session (fallback) — gated por __client_uat p/ perceber logout
+    if (!clerkSignedIn()) return null;
     return identityFromClaims(decodeJwt(sessionToken() || ""));
   }
 
