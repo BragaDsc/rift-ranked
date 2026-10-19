@@ -36,28 +36,43 @@ import { decodeJwt, identityFromClaims } from "./inpage/identity";
     if (capBuf.length > 40) capBuf.splice(0, capBuf.length - 40);
   }
 
-  // ------------------- Captura do token do Clerk (carona) -------------------
-  // O RiftAtlas deixou de expor a sessão num cookie legível, mas o app DELE continua
-  // renovando o token (aud=convex) pela FAPI do Clerk. "Pegamos carona": interceptamos
-  // as respostas da FAPI que trazem { jwt } e guardamos o mais recente + o sid da URL.
-  // Com isso a extensão segue SEMPRE a conta realmente logada, sem depender de cookie —
-  // e resiste às mudanças de auth do RiftAtlas (window.Clerk, cookie, etc.).
+  // ------------------- Captura do token do Clerk/Convex (carona) -------------------
+  // O RiftAtlas renova o token de sessão (iss=clerk, aud=convex) por conta própria,
+  // mas mudou VÁRIAS vezes ONDE ele fica (window.Clerk, cookie __session, agora nem
+  // isso). Em vez de depender do local, "pegamos carona": procuramos um JWT do Clerk
+  // em QUALQUER resposta de rede e em QUALQUER mensagem de WebSocket, validando pelo
+  // iss/aud. Assim seguimos sempre a conta logada, resistente às mudanças deles.
   let capJwt: string | null = null, capAt = 0, capSid: string | null = null;
-  const CLERK_FAPI = /https?:\/\/clerk\.[^/]+\/v1\//;
-  function takeTokenFrom(url: string, body: any) {
+  const JWT_RE = /eyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g;
+  function isRiftToken(p: any) {
+    return p && typeof p.sub === "string" &&
+      ((typeof p.iss === "string" && p.iss.includes("clerk")) || p.aud === "convex" || (Array.isArray(p.aud) && p.aud.includes("convex")));
+  }
+  function scanForToken(text: any) {
     try {
-      const sidM = url.match(/\/sessions\/([^/?]+)\/tokens/);
-      if (sidM) capSid = sidM[1];
-      if (body && typeof body === "object" && typeof body.jwt === "string" && body.jwt) { capJwt = body.jwt; capAt = Date.now(); }
+      if (typeof text !== "string" || text.indexOf("eyJ") < 0) return;
+      const found = text.match(JWT_RE); if (!found) return;
+      for (const t of found) {
+        const p = decodeJwt(t);
+        if (isRiftToken(p) && typeof p.exp === "number" && p.exp * 1000 > Date.now() && t !== capJwt) {
+          capJwt = t; capAt = Date.now(); if (typeof p.sid === "string") capSid = p.sid;
+          if (DEBUG) { try { console.log("[ranked] token capturado — sub:", p.sub, "iss:", p.iss, "aud:", p.aud); } catch { } }
+        }
+      }
     } catch { /* ignora */ }
   }
+  const SKIP_ASSET = /\.(js|css|png|jpe?g|webp|gif|svg|woff2?|ico|mp3|wav|mp4)(\?|$)/i;
   const origFetch = window.fetch;
   if (origFetch) {
     window.fetch = function (...args: any[]) {
       const ret = origFetch.apply(this, args as any);
       try {
         const url = String(typeof args[0] === "string" ? args[0] : (args[0] && args[0].url) || "");
-        if (CLERK_FAPI.test(url)) ret.then((r: Response) => { r.clone().json().then((d) => takeTokenFrom(url, d)).catch(() => { }); }).catch(() => { });
+        const sidM = url.match(/\/sessions\/([^/?]+)\/tokens/); if (sidM) capSid = sidM[1];
+        // só varre respostas não-asset e quando ainda não temos um token fresco (barato)
+        if (!SKIP_ASSET.test(url) && (!capJwt || Date.now() - capAt > 45_000)) {
+          ret.then((r: Response) => { try { const ct = r.headers.get("content-type") || ""; if (/json|text|javascript|plain/i.test(ct)) r.clone().text().then(scanForToken).catch(() => { }); } catch { } }).catch(() => { });
+        }
       } catch { /* ignora */ }
       return ret;
     };
@@ -69,7 +84,7 @@ import { decodeJwt, identityFromClaims } from "./inpage/identity";
     OrigXHR.prototype.send = function (...a: any[]) {
       try {
         const url = String((this as any).__rkUrl || "");
-        if (CLERK_FAPI.test(url)) this.addEventListener("load", () => { try { takeTokenFrom(url, JSON.parse(this.responseText)); } catch { } });
+        if (!SKIP_ASSET.test(url)) this.addEventListener("load", () => { try { scanForToken(this.responseText); } catch { } });
       } catch { /* ignora */ }
       return (send as any).apply(this, a);
     };
@@ -80,6 +95,12 @@ import { decodeJwt, identityFromClaims } from "./inpage/identity";
   function PatchedWS(url, protocols) {
     const ws = protocols === undefined ? new OrigWS(url) : new OrigWS(url, protocols);
     try {
+      // captura de token: o JWT de auth (aud=convex) trafega no WS realtime (Convex),
+      // tanto na mensagem de Authenticate que o cliente ENVIA quanto em respostas.
+      // Varremos entrada e saída de TODO socket — o token aparece em algum deles.
+      const origSend = ws.send;
+      ws.send = function (data: any) { try { if (typeof data === "string") scanForToken(data); } catch { } return origSend.apply(this, arguments as any); };
+      ws.addEventListener("message", (ev) => { try { if (typeof ev.data === "string") scanForToken(ev.data); } catch { } });
       const u = String(url);
       if (u.includes("/parties/match/")) {
         resetAcc(); // sala/partida nova → começa do zero (não herda placar antigo)
